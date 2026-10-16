@@ -1,0 +1,56 @@
+
+* {
+  margin: 0;
+  padding: 0;
+
+  box-sizing: border-box;
+}
+
+html, body,#root {
+
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  font-family: 'Poppins', sans-serif;
+  background: linear-gradient(to right, #000, rgb(39, 37, 37));
+  color: #f40d0d;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+::-webkit-scrollbar-track{
+  background: #000000;
+}
+::-webkit-scrollbar{
+  width: 8px;
+
+}
+::-webkit-scrollbar-thumb{
+  background: #717171;
+  border-radius: 20px;
+}
+::-webkit-scrollbar-thumb:hover{
+  background: #c1bebe;
+}
+
+/* colors =  black #000000 , dgrey #1a1a1a ,red theme color #8B0000  /// hover button redcolors-- #d32f2f to  #b71c1c*/
+/* <Button                 type="submit"
+                                 onClick={() => navigate('/login')}
+                                  variant="contained"
+                                  size="large"
+                                  fullWidth
+                                  sx={{
+                                    background: 'linear-gradient(45deg, #d32f2f, #b71c1c)',
+                                    color: '#fff',
+                                    fontWeight: 'bold',
+                                    transition: 'all 0.3s ease-in-out',
+                                    '&:hover': {
+                                      background: 'linear-gradient(45deg, #b71c1c, #7f0000)',
+                                      transform: 'scale(1.03)',
+                                    },
+                                  }}
+                                >
+                                  Login
+                                </Button> */
