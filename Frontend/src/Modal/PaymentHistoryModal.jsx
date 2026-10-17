@@ -107,6 +107,21 @@ const PaymentHistoryModal = ({ open, onClose, member }) => {
                   <Typography variant="body2" sx={{ color: '#ccc', mt: 1 }}>
                     Date: {dayjs(payment.paidAt).format('DD MMM YYYY, hh:mm A')}
                   </Typography>
+                  {payment.amount != null && (
+                    <Typography variant="body2" sx={{ color: '#fff', mt: 0.5, fontWeight: 'bold' }}>
+                      Amount: ₹{Number(payment.amount).toLocaleString('en-IN')}
+                    </Typography>
+                  )}
+                  {payment.method && (
+                    <Typography variant="body2" sx={{ color: '#ccc', mt: 0.5 }}>
+                      Method: {payment.method}
+                    </Typography>
+                  )}
+                  {payment.reference && (
+                    <Typography variant="body2" sx={{ color: '#999', mt: 0.5, wordBreak: 'break-word' }}>
+                      Reference: {payment.reference}
+                    </Typography>
+                  )}
                   <Typography variant="body2" sx={{ color: '#ccc', mt: 0.5 }}>
                     Months covered: {payment.monthsCovered || 1}
                   </Typography>
