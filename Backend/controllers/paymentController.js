@@ -110,27 +110,19 @@ export const recordCashPayment = async (req, res) => {
         .json({ message: 'Member not found or invalid member ID.' });
     }
 
-    const activeQr = await PendingPayment.findOne({
+    const unresolvedIntent = await PendingPayment.findOne({
       memberId: member._id,
       ownerId: req.user._id,
-      status: 'Pending',
-      expiresAt: { $gt: new Date() },
-      qrImageUrl: { $ne: null },
-    });
-    if (activeQr) {
-      return res.status(409).json({
-        message: 'A UPI QR is still awaiting payment for this member. Reopen that request or wait for it to expire before recording cash.',
-      });
-    }
+      status: { $in: ['Pending', 'Expired', 'NeedsReview'] },
+    }).sort({ createdAt: -1 });
 
-    const reviewRequired = await PendingPayment.findOne({
-      memberId: member._id,
-      ownerId: req.user._id,
-      status: 'NeedsReview',
-    });
-    if (reviewRequired) {
+    if (unresolvedIntent) {
+      if (unresolvedIntent.status === 'Pending' && unresolvedIntent.expiresAt <= new Date()) {
+        unresolvedIntent.status = 'Expired';
+        await unresolvedIntent.save();
+      }
       return res.status(409).json({
-        message: 'A previous UPI payment needs review. Check Razorpay before collecting another payment.',
+        message: 'A previous UPI request is unresolved. Reopen Mark as Paid and verify its status before recording cash.',
       });
     }
 
@@ -165,15 +157,15 @@ export const createDynamicQrPayment = async (req, res) => {
     const details = validatePaymentInputs({ amount: req.body.amount, monthlyFee });
     if (details.error) return res.status(400).json({ message: details.error });
 
-    const reviewRequired = await PendingPayment.findOne({
+    const stalePending = await PendingPayment.findOne({
       memberId: member._id,
       ownerId: req.user._id,
-      status: 'NeedsReview',
+      status: 'Pending',
+      expiresAt: { $lte: new Date() },
     });
-    if (reviewRequired) {
-      return res.status(409).json({
-        message: 'A previous UPI payment needs review. Check Razorpay before creating another QR.',
-      });
+    if (stalePending) {
+      stalePending.status = 'Expired';
+      await stalePending.save();
     }
 
     const existingIntent = await PendingPayment.findOne({
@@ -196,6 +188,17 @@ export const createDynamicQrPayment = async (req, res) => {
           qrImageUrl: existingIntent.qrImageUrl,
           expiresAt: existingIntent.expiresAt,
         },
+      });
+    }
+
+    const unresolvedIntent = await PendingPayment.findOne({
+      memberId: member._id,
+      ownerId: req.user._id,
+      status: { $in: ['Expired', 'NeedsReview'] },
+    }).sort({ createdAt: -1 });
+    if (unresolvedIntent) {
+      return res.status(409).json({
+        message: 'A previous UPI request needs review. Reopen Mark as Paid and verify it before creating another QR.',
       });
     }
 
@@ -271,6 +274,72 @@ export const createDynamicQrPayment = async (req, res) => {
     }
     console.error('Create dynamic QR failed:', error);
     return res.status(500).json({ message: 'Unable to create a UPI QR code.' });
+  }
+};
+
+export const getMemberPendingPayment = async (req, res) => {
+  try {
+    const member = await findOwnedMember(req.params.id, req.user._id);
+    if (!member) {
+      return res.status(mongoose.Types.ObjectId.isValid(req.params.id) ? 404 : 400)
+        .json({ message: 'Member not found or invalid member ID.' });
+    }
+
+    const paymentIntent = await PendingPayment.findOne({
+      memberId: member._id,
+      ownerId: req.user._id,
+      status: { $in: ['Pending', 'Expired', 'NeedsReview'] },
+    }).sort({ createdAt: -1 });
+
+    if (!paymentIntent) return res.status(200).json({ paymentIntent: null });
+
+    if (paymentIntent.status === 'Pending' && paymentIntent.expiresAt <= new Date()) {
+      paymentIntent.status = 'Expired';
+      await paymentIntent.save();
+    }
+
+    return res.status(200).json({
+      paymentIntent: {
+        id: String(paymentIntent._id),
+        status: paymentIntent.status,
+        amount: paymentIntent.amountPaise / 100,
+        monthlyFee: paymentIntent.monthlyFeePaise / 100,
+        monthsCovered: paymentIntent.monthsCovered,
+        qrImageUrl: paymentIntent.qrImageUrl,
+        expiresAt: paymentIntent.expiresAt,
+      },
+    });
+  } catch (error) {
+    console.error('Get member pending payment failed:', error);
+    return res.status(500).json({ message: 'Unable to retrieve the previous payment request.' });
+  }
+};
+
+export const resolvePaymentIntentNoPayment = async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid payment intent ID.' });
+    }
+    if (req.body?.confirmedNoPayment !== true) {
+      return res.status(400).json({ message: 'Explicit confirmation that no payment was received is required.' });
+    }
+
+    const paymentIntent = await PendingPayment.findOne({
+      _id: req.params.id,
+      ownerId: req.user._id,
+      status: { $in: ['Expired', 'NeedsReview'] },
+    });
+
+    if (!paymentIntent) {
+      return res.status(404).json({ message: 'Only expired or review-required requests can be resolved.' });
+    }
+
+    paymentIntent.status = 'Failed';
+    await paymentIntent.save();
+    return res.status(200).json({ message: 'Payment request resolved; no payment was recorded.' });
+  } catch (error) {
+    console.error('Resolve payment request failed:', error);
+    return res.status(500).json({ message: 'Unable to resolve the payment request.' });
   }
 };
 
