@@ -26,6 +26,8 @@ const PaymentCollectionModal = ({ open, onClose, member, onPaymentSuccess }) => 
   const [error, setError] = React.useState('');
   const [paymentIntent, setPaymentIntent] = React.useState(null);
   const notifiedPaid = React.useRef(false);
+  const onPaymentSuccessRef = React.useRef(onPaymentSuccess);
+  onPaymentSuccessRef.current = onPaymentSuccess;
 
   React.useEffect(() => {
     if (!member?._id) return;
@@ -47,8 +49,6 @@ const PaymentCollectionModal = ({ open, onClose, member, onPaymentSuccess }) => 
   const hasRemainder = validValues && amountPaise % feePaise !== 0;
   const monthsCovered = validValues && !hasRemainder ? amountPaise / feePaise : 0;
 
-  const headers = { Authorization: 'Bearer ' + localStorage.getItem('token') };
-
   const handleCashPayment = async () => {
     setBusy(true);
     setError('');
@@ -57,7 +57,7 @@ const PaymentCollectionModal = ({ open, onClose, member, onPaymentSuccess }) => 
         amount: Number(amount),
         monthlyFee: Number(monthlyFee),
         reference: reference.trim() || undefined,
-      }, { headers });
+      }, { headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } });
       onPaymentSuccess?.();
       onClose();
     } catch (err) {
@@ -74,7 +74,7 @@ const PaymentCollectionModal = ({ open, onClose, member, onPaymentSuccess }) => 
       const response = await axios.post(API + '/payments/members/' + member._id + '/qr', {
         amount: Number(amount),
         monthlyFee: Number(monthlyFee),
-      }, { headers });
+      }, { headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } });
       setPaymentIntent(response.data.paymentIntent);
       notifiedPaid.current = false;
     } catch (err) {
@@ -89,12 +89,12 @@ const PaymentCollectionModal = ({ open, onClose, member, onPaymentSuccess }) => 
 
     const checkStatus = async () => {
       try {
-        const response = await axios.get(API + '/payments/payment-intents/' + paymentIntent.id, { headers });
+        const response = await axios.get(API + '/payments/payment-intents/' + paymentIntent.id, { headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } });
         const latest = response.data;
         setPaymentIntent((current) => current ? { ...current, ...latest } : current);
         if (latest.status === 'Paid' && !notifiedPaid.current) {
           notifiedPaid.current = true;
-          onPaymentSuccess?.();
+          onPaymentSuccessRef.current?.();
         }
       } catch (err) {
         // A temporary network failure should not change the payment state.
