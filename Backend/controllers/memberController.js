@@ -162,11 +162,7 @@ export const undoPaymentStatus = async (req, res) => {
       .reverse()
       .find((payment) => payment.status === 'Paid');
 
-    if (
-      latestPayment &&
-      member.lastPaidDate &&
-      new Date(latestPayment.paidAt).getTime() === new Date(member.lastPaidDate).getTime()
-    ) {
+    if (latestPayment) {
       latestPayment.status = 'Reversed';
       latestPayment.reversedAt = new Date();
     }
