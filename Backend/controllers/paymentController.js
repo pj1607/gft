@@ -70,6 +70,9 @@ const applySuccessfulPayment = async ({
     if (duplicate) return false;
   }
 
+  member.previousUnpaidMonths = member.unpaidFor;
+  member.previousLastPaidDate = member.lastPaidDate;
+
   const now = dayjs(paidAt);
   const overdueMonths = getMonthsOverdue(member, now);
   const lastPaid = dayjs(member.lastPaidDate);
