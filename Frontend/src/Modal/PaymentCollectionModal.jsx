@@ -61,7 +61,7 @@ const PaymentCollectionModal = ({ open, onClose, member, onPaymentSuccess }) => 
 
     loadPendingPayment();
     return () => { cancelled = true; };
-  }, [member?._id]);
+  }, [member?._id, member?.monthlyFee, member?.unpaidFor]);
 
   const amountPaise = Math.round(Number(amount) * 100);
   const feePaise = Math.round(Number(monthlyFee) * 100);
