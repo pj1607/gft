@@ -76,6 +76,9 @@ export const addMember = async (req, res) => {
       lastPaidDate,
       unpaidFor,
       createdBy: req.user._id,
+      paymentHistory: status === 'Paid'
+        ? [{ paidAt: lastPaidDate, monthsCovered: 1, status: 'Paid' }]
+        : [],
     });
 
     await newMember.save();
@@ -90,63 +93,102 @@ export const addMember = async (req, res) => {
 
 //UPDATE-PAYMENT-STATUS
 export const updatePaymentStatus = async (req, res) => {
-  const objectId = new mongoose.Types.ObjectId(req.params.id);
-
   try {
-  
-    const member = await Member.findOne({ _id: objectId, createdBy: req.user._id });
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid member ID" });
+    }
+
+    const member = await Member.findOne({ _id: req.params.id, createdBy: req.user._id });
+    if (!member) {
+      return res.status(404).json({ message: "Member not found" });
+    }
+
+    const paidAt = new Date();
+    member.previousUnpaidMonths = member.unpaidFor;
+    member.previousLastPaidDate = member.lastPaidDate;
+    member.status = "Paid";
+    member.lastPaidDate = paidAt;
+    member.unpaidFor = 0;
+    member.paymentHistory.push({
+      paidAt,
+      monthsCovered: Math.max(Number(member.previousUnpaidMonths) || 1, 1),
+      status: "Paid",
+    });
+
+    await member.save();
+    return res.status(200).json(member);
+  } catch (error) {
+    console.error("Update payment status failed:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+//PAYMENT-HISTORY
+export const getPaymentHistory = async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid member ID" });
+    }
+
+    const member = await Member.findOne({
+      _id: req.params.id,
+      createdBy: req.user._id,
+    }).select("name phone paymentHistory");
 
     if (!member) {
       return res.status(404).json({ message: "Member not found" });
     }
 
-    const updatedMember = await Member.findOneAndUpdate(
-      { _id: objectId, createdBy: req.user._id },
-      {
-        previousUnpaidMonths: member.unpaidFor,
-        previousLastPaidDate: member.lastPaidDate,
-        
-        status: "Paid",
-        lastPaidDate: new Date(),
-        unpaidFor: 0
-      },
-      { new: true }
+    const paymentHistory = [...member.paymentHistory].sort(
+      (a, b) => new Date(b.paidAt) - new Date(a.paidAt)
     );
 
-    res.json(updatedMember);
-
+    return res.status(200).json({
+      member: { id: member._id, name: member.name, phone: member.phone },
+      paymentHistory,
+      totalPayments: paymentHistory.filter((payment) => payment.status === "Paid").length,
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error" });
+    console.error("Get payment history failed:", error);
+    return res.status(500).json({ message: "Failed to fetch payment history" });
   }
 };
 
 //UNDO-PAYMENT-STATUS
 export const undoPaymentStatus = async (req, res) => {
-  const objectId = new mongoose.Types.ObjectId(req.params.id);
-
-
   try {
-    const member = await Member.findOne({ _id: objectId, createdBy: req.user._id });
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid member ID" });
+    }
 
+    const member = await Member.findOne({ _id: req.params.id, createdBy: req.user._id });
     if (!member) {
       return res.status(404).json({ message: "Member not found" });
     }
 
-    const updatedMember = await Member.findOneAndUpdate(
-      { _id: objectId, createdBy: req.user._id },
-      {
-        status: "Unpaid",
-        unpaidFor: member.previousUnpaidMonths ?? 0,
-        lastPaidDate: member.previousLastPaidDate ?? dayjs().format('DD MMMM YYYY')
-      },
-      { new: true }
-    );
+    // Keep the existing Undo workflow while retaining an audit record.
+    const latestPayment = [...member.paymentHistory]
+      .reverse()
+      .find((payment) => payment.status === "Paid");
 
-    res.json(updatedMember);
+    if (
+      latestPayment &&
+      member.lastPaidDate &&
+      new Date(latestPayment.paidAt).getTime() === new Date(member.lastPaidDate).getTime()
+    ) {
+      latestPayment.status = "Reversed";
+      latestPayment.reversedAt = new Date();
+    }
+
+    member.status = "Unpaid";
+    member.unpaidFor = member.previousUnpaidMonths ?? 0;
+    member.lastPaidDate = member.previousLastPaidDate ?? member.lastPaidDate;
+    await member.save();
+
+    return res.status(200).json(member);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error" });
+    console.error("Undo payment status failed:", error);
+    return res.status(500).json({ message: "Server error" });
   }
 };
 
