@@ -41,5 +41,5 @@ Subscribe to the `qr_code.credited` event and use the same webhook secret in `RA
 - QR codes are single-use, fixed to the amount entered, and expire after 30 minutes.
 - The owner must not manually mark a QR payment as paid. Provider webhook confirmation is the source of truth.
 - The amount must cover whole months at the member's saved monthly fee. Partial-month payments are not supported in this first version.
-- If a webhook reports an unexpected amount or an unresolvable member, the intent becomes `NeedsReview`; check the Razorpay Dashboard before collecting again.
+- If a QR expires or a webhook reports unexpected payment data, check the Razorpay Dashboard before retrying. The app requires explicit confirmation that no payment was received before it clears an expired or review-required request.
 - Razorpay account activation, QR API availability, UPI test behavior, and transaction fees depend on the provider account and current provider terms.
