@@ -21,6 +21,8 @@ import SearchIcon from '@mui/icons-material/Search';
 import dayjs from 'dayjs';
 import AddMemberModal from '../../Modal/AddmemberModal';
 import EditMemberModal from '../../Modal/EditMemberModal';
+import PaymentHistoryModal from '../../Modal/PaymentHistoryModal';
+import HistoryIcon from '@mui/icons-material/History';
 import axios from 'axios';
 import {toast} from 'react-toastify'
 import { useNavigate ,Link} from 'react-router-dom';
@@ -48,6 +50,8 @@ const MemberTableDesktop = () => {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
 
 const [editModalOpen, setEditModalOpen] = React.useState(false);
+const [historyModalOpen, setHistoryModalOpen] = React.useState(false);
+const [historyMember, setHistoryMember] = React.useState(null);
 const [selectedMember, setSelectedMember] = React.useState(null);
 
 const [loading, setLoading] = React.useState(false);
@@ -78,6 +82,16 @@ const handleEditMember = (member) => {
 const handleCloseEditModal = () => {
   setEditModalOpen(false);
   setSelectedMember(null);
+};
+
+const handleOpenPaymentHistory = (member) => {
+  setHistoryMember(member);
+  setHistoryModalOpen(true);
+};
+
+const handleClosePaymentHistory = () => {
+  setHistoryModalOpen(false);
+  setHistoryMember(null);
 };
 const CustomNoRowsOverlay = () => (
   <Box
@@ -441,6 +455,22 @@ onClick={() =>
     { field: 'lastPaidDate', headerName: 'Last Paid', flex: 1,sortable: false, },
     { field: 'unpaidFor', headerName: 'Unpaid (Months)', flex: 1,sortable: false, },
     {
+      field: 'history',
+      headerName: 'Payment History',
+      flex: 1,
+      sortable: false,
+      renderCell: ({ row }) => (
+        <Button
+          size="small"
+          startIcon={<HistoryIcon />}
+          onClick={() => handleOpenPaymentHistory(row)}
+          sx={{ color: '#E89B4A', textTransform: 'none', fontWeight: 'bold' }}
+        >
+          History
+        </Button>
+      ),
+    },
+    {
       field: 'delete',
       headerName: 'Delete Member',
       flex: 1,
@@ -650,6 +680,11 @@ onClick={() =>
       <AddMemberModal
         open={isModalOpen}
         handleClose={handleCloseModal}
+      />
+      <PaymentHistoryModal
+        open={historyModalOpen}
+        onClose={handleClosePaymentHistory}
+        member={historyMember}
       />
       <EditMemberModal
         loading={loading}
