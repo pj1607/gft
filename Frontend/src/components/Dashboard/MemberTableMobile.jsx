@@ -23,6 +23,8 @@ import EditIcon from '@mui/icons-material/Edit';
 import dayjs from 'dayjs';
 import AddMemberModal from '../../Modal/AddmemberModal';
 import EditMemberModal from '../../Modal/EditMemberModal';
+import PaymentHistoryModal from '../../Modal/PaymentHistoryModal';
+import HistoryIcon from '@mui/icons-material/History';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -42,6 +44,8 @@ const MemberTableMobile = () => {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [editModalOpen, setEditModalOpen] = React.useState(false);
+  const [historyModalOpen, setHistoryModalOpen] = React.useState(false);
+  const [historyMember, setHistoryMember] = React.useState(null);
   const [selectedMember, setSelectedMember] = React.useState(null);
 
   const [loading, setLoading] = React.useState(false);
@@ -227,6 +231,16 @@ React.useState({ open: false, title: '', description: '', onConfirm: null });
   const handleCloseEditModal = () => {
     setSelectedMember(null);
     setEditModalOpen(false);
+  };
+
+  const handleOpenPaymentHistory = (member) => {
+    setHistoryMember(member);
+    setHistoryModalOpen(true);
+  };
+
+  const handleClosePaymentHistory = () => {
+    setHistoryModalOpen(false);
+    setHistoryMember(null);
   };
 
   const handleUpdateMember = async (updatedData) => {
@@ -473,6 +487,15 @@ React.useState({ open: false, title: '', description: '', onConfirm: null });
 
             <Button
               size="small"
+              startIcon={<HistoryIcon />}
+              onClick={() => handleOpenPaymentHistory(row)}
+              sx={{ color: '#E89B4A' }}
+            >
+              History
+            </Button>
+
+            <Button
+              size="small"
               onClick={() => handleEditMember(row)}
               startIcon={<EditIcon />}
               sx={{ color: '#2196f3' }}
@@ -490,6 +513,12 @@ React.useState({ open: false, title: '', description: '', onConfirm: null });
 
       {/* Add Member Modal */}
       <AddMemberModal open={isModalOpen} handleClose={handleCloseModal} />
+
+      <PaymentHistoryModal
+        open={historyModalOpen}
+        onClose={handleClosePaymentHistory}
+        member={historyMember}
+      />
 
       {/* Edit Member Modal */}
       <EditMemberModal
