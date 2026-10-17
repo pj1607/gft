@@ -2,14 +2,18 @@ import express from 'express';
 import dotenv from 'dotenv';
 import connectDB from './config/conn.js';
 import memberRoutes from './routes/memberRoutes.js';
-import userRoutes from './routes/userRoutes.js'; 
+import paymentRoutes from './routes/paymentRoutes.js';
+import userRoutes from './routes/userRoutes.js';
 import cors from 'cors';
 
 dotenv.config();
 
 const app = express();
-app.use(express.json());
 
+// Razorpay signs the exact raw webhook body. This parser must run before
+// express.json() so the webhook signature can be verified securely.
+app.use('/payments/razorpay/webhook', express.raw({ type: 'application/json' }));
+app.use(express.json());
 
 connectDB();
 
@@ -29,17 +33,15 @@ app.use(cors({
   credentials: true
 }));
 
-
-
-// Routes
 app.use('/members', memberRoutes);
-app.use('/auth', userRoutes); 
+app.use('/payments', paymentRoutes);
+app.use('/auth', userRoutes);
 
 app.get('/', (req, res) => {
-    res.send("MongoDB connection is working!");
+  res.send('MongoDB connection is working!');
 });
 
-const PORT =  process.env.PORT || 4000;
+const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
+  console.log('Server running at http://localhost:' + PORT);
 });
