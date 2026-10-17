@@ -30,7 +30,9 @@ const PaymentCollectionModal = ({ open, onClose, member, onPaymentSuccess }) => 
   onPaymentSuccessRef.current = onPaymentSuccess;
 
   React.useEffect(() => {
-    if (!member?._id) return;
+    if (!member?._id) return undefined;
+    let cancelled = false;
+
     const fee = Number(member.monthlyFee) || 0;
     const monthsDue = Math.max(Number(member.unpaidFor) || 1, 1);
     setMonthlyFee(fee > 0 ? String(fee) : '');
@@ -40,6 +42,25 @@ const PaymentCollectionModal = ({ open, onClose, member, onPaymentSuccess }) => 
     setError('');
     setPaymentIntent(null);
     notifiedPaid.current = false;
+
+    const loadPendingPayment = async () => {
+      try {
+        const response = await axios.get(API + '/payments/members/' + member._id + '/pending', {
+          headers: { Authorization: 'Bearer ' + localStorage.getItem('token') },
+        });
+        if (cancelled || !response.data.paymentIntent) return;
+        const pending = response.data.paymentIntent;
+        setPaymentIntent(pending);
+        setMethod('UPI');
+        setMonthlyFee(String(pending.monthlyFee));
+        setAmount(String(pending.amount));
+      } catch (err) {
+        // If there is no previous request, the owner can start a new payment.
+      }
+    };
+
+    loadPendingPayment();
+    return () => { cancelled = true; };
   }, [member?._id]);
 
   const amountPaise = Math.round(Number(amount) * 100);
@@ -105,6 +126,26 @@ const PaymentCollectionModal = ({ open, onClose, member, onPaymentSuccess }) => 
     const timer = setInterval(checkStatus, 3000);
     return () => clearInterval(timer);
   }, [open, paymentIntent?.id, paymentIntent?.status]);
+
+  const handleResolveNoPayment = async () => {
+    if (!paymentIntent?.id) return;
+    setBusy(true);
+    setError('');
+    try {
+      await axios.post(
+        API + '/payments/payment-intents/' + paymentIntent.id + '/resolve-no-payment',
+        { confirmedNoPayment: true },
+        { headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } }
+      );
+      setPaymentIntent(null);
+      setMethod('UPI');
+      setError('');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not resolve the previous QR request.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const handleClose = () => {
     if (busy) return;
@@ -209,15 +250,12 @@ const PaymentCollectionModal = ({ open, onClose, member, onPaymentSuccess }) => 
               {status === 'Pending' && <><CircularProgress size={18} sx={{ color: '#90caf9' }} /><Typography variant="body2">Waiting for payment confirmation…</Typography></>}
               {status === 'Paid' && <><CheckCircleIcon sx={{ color: '#81c784' }} /><Typography sx={{ color: '#81c784' }} fontWeight="bold">Payment confirmed</Typography></>}
               {status === 'Expired' && <Typography color="warning.main">This QR expired. Check Razorpay before retrying.</Typography>}
-              {status === 'NeedsReview' && <Typography color="warning.main">Payment received but needs owner review. Do not collect again until you check the provider dashboard.</Typography>}
+              {status === 'NeedsReview' && <Typography color="warning.main">This payment could not be automatically reconciled. Check Razorpay before taking action.</Typography>}
               {status === 'Failed' && <Typography color="error.main">Payment failed. Create a new request if needed.</Typography>}
             </Box>
-            {status === 'Expired' && (
-              <Button onClick={() => {
-                setPaymentIntent(null);
-                setError('');
-              }} sx={{ mt: 1, color: '#90caf9' }}>
-                I verified no payment — create a new QR
+            {(status === 'Expired' || status === 'NeedsReview') && (
+              <Button disabled={busy} onClick={handleResolveNoPayment} sx={{ mt: 1, color: '#90caf9' }}>
+                I checked Razorpay: no payment was received
               </Button>
             )}
             {status === 'Failed' && (
