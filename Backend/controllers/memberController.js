@@ -48,7 +48,7 @@ export const addMember = async (req, res) => {
 
     name = name.trim();
     phone = phone.trim();
-    const parsedMonthlyFee = monthlyFee === undefined || monthlyFee === '' ? undefined : Number(monthlyFee);
+    const parsedMonthlyFee = monthlyFee === undefined || monthlyFee === '' ? 0 : Number(monthlyFee);
 
     if (typeof name !== 'string' || name.length < 4) {
       return res.status(400).json({ error: 'Name must be at least 4 characters long.' });
@@ -56,7 +56,7 @@ export const addMember = async (req, res) => {
     if (typeof phone !== 'string' || !/^\d{10}$/.test(phone)) {
       return res.status(400).json({ error: 'Phone number must be exactly 10 digits.' });
     }
-    if (parsedMonthlyFee !== undefined && (!Number.isFinite(parsedMonthlyFee) || parsedMonthlyFee < 0)) {
+    if (!Number.isFinite(parsedMonthlyFee) || parsedMonthlyFee < 0) {
       return res.status(400).json({ error: 'Monthly fee must be zero or a positive amount.' });
     }
 
@@ -227,7 +227,7 @@ export const updateMember = async (req, res) => {
 
     name = name.trim();
     phone = phone.trim();
-    const parsedMonthlyFee = monthlyFee === undefined || monthlyFee === '' ? 0 : Number(monthlyFee);
+    const parsedMonthlyFee = monthlyFee === undefined || monthlyFee === '' ? undefined : Number(monthlyFee);
 
     if (typeof name !== 'string' || name.length < 4) {
       return res.status(400).json({ error: 'Name must be at least 4 characters long.' });
@@ -235,7 +235,7 @@ export const updateMember = async (req, res) => {
     if (typeof phone !== 'string' || !/^\d{10}$/.test(phone)) {
       return res.status(400).json({ error: 'Phone number must be exactly 10 digits.' });
     }
-    if (!Number.isFinite(parsedMonthlyFee) || parsedMonthlyFee < 0) {
+    if (parsedMonthlyFee !== undefined && (!Number.isFinite(parsedMonthlyFee) || parsedMonthlyFee < 0)) {
       return res.status(400).json({ error: 'Monthly fee must be zero or a positive amount.' });
     }
 
