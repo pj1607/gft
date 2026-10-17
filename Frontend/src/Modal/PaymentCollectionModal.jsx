@@ -208,14 +208,14 @@ const PaymentCollectionModal = ({ open, onClose, member, onPaymentSuccess }) => 
             <Box display="flex" justifyContent="center" alignItems="center" gap={1} mt={2}>
               {status === 'Pending' && <><CircularProgress size={18} sx={{ color: '#90caf9' }} /><Typography variant="body2">Waiting for payment confirmation…</Typography></>}
               {status === 'Paid' && <><CheckCircleIcon sx={{ color: '#81c784' }} /><Typography sx={{ color: '#81c784' }} fontWeight="bold">Payment confirmed</Typography></>}
-              {status === 'Expired' && <Typography color="warning.main">This QR expired. Create a new payment request.</Typography>}
+              {status === 'Expired' && <Typography color="warning.main">This QR expired. Check Razorpay before retrying.</Typography>}
               {status === 'NeedsReview' && <Typography color="warning.main">Payment received but needs owner review. Do not collect again until you check the provider dashboard.</Typography>}
               {status === 'Failed' && <Typography color="error.main">Payment failed. Create a new request if needed.</Typography>}
             </Box>
             {status === 'Expired' && (
               <Button onClick={() => {
                 setPaymentIntent(null);
-                setError('Before retrying, verify in Razorpay that the expired QR received no payment.');
+                setError('');
               }} sx={{ mt: 1, color: '#90caf9' }}>
                 I verified no payment — create a new QR
               </Button>
