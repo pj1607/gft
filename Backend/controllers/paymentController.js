@@ -110,6 +110,30 @@ export const recordCashPayment = async (req, res) => {
         .json({ message: 'Member not found or invalid member ID.' });
     }
 
+    const activeQr = await PendingPayment.findOne({
+      memberId: member._id,
+      ownerId: req.user._id,
+      status: 'Pending',
+      expiresAt: { $gt: new Date() },
+      qrImageUrl: { $ne: null },
+    });
+    if (activeQr) {
+      return res.status(409).json({
+        message: 'A UPI QR is still awaiting payment for this member. Reopen that request or wait for it to expire before recording cash.',
+      });
+    }
+
+    const reviewRequired = await PendingPayment.findOne({
+      memberId: member._id,
+      ownerId: req.user._id,
+      status: 'NeedsReview',
+    });
+    if (reviewRequired) {
+      return res.status(409).json({
+        message: 'A previous UPI payment needs review. Check Razorpay before collecting another payment.',
+      });
+    }
+
     const monthlyFee = req.body.monthlyFee ?? member.monthlyFee;
     const details = validatePaymentInputs({ amount: req.body.amount, monthlyFee });
     if (details.error) return res.status(400).json({ message: details.error });
@@ -140,6 +164,40 @@ export const createDynamicQrPayment = async (req, res) => {
     const monthlyFee = req.body.monthlyFee ?? member.monthlyFee;
     const details = validatePaymentInputs({ amount: req.body.amount, monthlyFee });
     if (details.error) return res.status(400).json({ message: details.error });
+
+    const reviewRequired = await PendingPayment.findOne({
+      memberId: member._id,
+      ownerId: req.user._id,
+      status: 'NeedsReview',
+    });
+    if (reviewRequired) {
+      return res.status(409).json({
+        message: 'A previous UPI payment needs review. Check Razorpay before creating another QR.',
+      });
+    }
+
+    const existingIntent = await PendingPayment.findOne({
+      memberId: member._id,
+      ownerId: req.user._id,
+      status: 'Pending',
+      expiresAt: { $gt: new Date() },
+      qrImageUrl: { $ne: null },
+    }).sort({ createdAt: -1 });
+
+    if (existingIntent) {
+      return res.status(200).json({
+        reused: true,
+        paymentIntent: {
+          id: String(existingIntent._id),
+          status: existingIntent.status,
+          amount: existingIntent.amountPaise / 100,
+          monthlyFee: existingIntent.monthlyFeePaise / 100,
+          monthsCovered: existingIntent.monthsCovered,
+          qrImageUrl: existingIntent.qrImageUrl,
+          expiresAt: existingIntent.expiresAt,
+        },
+      });
+    }
 
     const { RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET } = process.env;
     if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
