@@ -34,9 +34,18 @@ const memberSchema = new mongoose.Schema({
     default: null
   },
   previousLastPaidDate: {
-  type : Date,
-  default: null
-}
+    type: Date,
+    default: null
+  },
+  paymentHistory: {
+    type: [{
+      paidAt: { type: Date, required: true, default: Date.now },
+      monthsCovered: { type: Number, default: 1, min: 1 },
+      status: { type: String, enum: ['Paid', 'Reversed'], default: 'Paid' },
+      reversedAt: { type: Date, default: null }
+    }],
+    default: []
+  }
 
 }, { timestamps: true });
 
