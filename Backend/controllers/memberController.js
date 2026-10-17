@@ -86,39 +86,6 @@ export const addMember = async (req, res) => {
   }
 };
 
-// LEGACY PAYMENT ENDPOINT
-// New dashboard flows use /payments/members/:id/cash or /payments/members/:id/qr.
-export const updatePaymentStatus = async (req, res) => {
-  try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-      return res.status(400).json({ message: 'Invalid member ID' });
-    }
-
-    const member = await Member.findOne({ _id: req.params.id, createdBy: req.user._id });
-    if (!member) return res.status(404).json({ message: 'Member not found' });
-
-    const paidAt = new Date();
-    member.previousUnpaidMonths = member.unpaidFor;
-    member.previousLastPaidDate = member.lastPaidDate;
-    member.status = 'Paid';
-    member.lastPaidDate = paidAt;
-    member.unpaidFor = 0;
-    member.paymentHistory.push({
-      paidAt,
-      amount: member.monthlyFee || null,
-      method: member.monthlyFee ? 'Cash' : null,
-      monthsCovered: Math.max(Number(member.previousUnpaidMonths) || 1, 1),
-      status: 'Paid',
-    });
-
-    await member.save();
-    return res.status(200).json(member);
-  } catch (error) {
-    console.error('Update payment status failed:', error);
-    return res.status(500).json({ message: 'Server error' });
-  }
-};
-
 // PAYMENT HISTORY
 export const getPaymentHistory = async (req, res) => {
   try {
