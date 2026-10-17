@@ -24,6 +24,7 @@ import dayjs from 'dayjs';
 import AddMemberModal from '../../Modal/AddmemberModal';
 import EditMemberModal from '../../Modal/EditMemberModal';
 import PaymentHistoryModal from '../../Modal/PaymentHistoryModal';
+import PaymentCollectionModal from '../../Modal/PaymentCollectionModal';
 import HistoryIcon from '@mui/icons-material/History';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import axios from 'axios';
@@ -46,6 +47,8 @@ const MemberTableMobile = () => {
   const [editModalOpen, setEditModalOpen] = React.useState(false);
   const [historyModalOpen, setHistoryModalOpen] = React.useState(false);
   const [historyMember, setHistoryMember] = React.useState(null);
+  const [paymentModalOpen, setPaymentModalOpen] = React.useState(false);
+  const [paymentMember, setPaymentMember] = React.useState(null);
   const [selectedMember, setSelectedMember] = React.useState(null);
 
   const [loading, setLoading] = React.useState(false);
@@ -105,49 +108,6 @@ React.useState({ open: false, title: '', description: '', onConfirm: null });
   React.useEffect(() => {
     fetchMembers();
   }, []);
-
-  const markAsPaid = async (id) => {
-    try {
-    setLoadingId(id);
-    setLoadingType('pay');
-      const res = await axios.put(
-        `${API}/members/${id}/pay`,
-        {},
-        { headers: {
-    'Authorization': `Bearer ${localStorage.getItem('token')}`,  
-  } }
-      );
-      setData((prev) =>
-        prev.map((m) =>
-          m._id === id
-            ? {
-                ...m,
-                status: 'Paid',
-                unpaidFor: 0,
-                lastPaidDate: dayjs(res.data.lastPaidDate).format('DD-MM-YYYY'),
-              }
-            : m
-        )
-      );
-    } catch (error) {
-    const errormessage =
-      error.response?.data?.error ||
-      error.response?.data?.message ||
-      'Failed to mark member';
-
-   
-     setSnackbar({
-  open: true,
-  message: errormessage,
-  severity: "error",
-});
-  }
- finally {
-    setLoadingId(null);
-    setLoadingType('');
-  }
-
-  };
 
   const handleUndoMarkAsPaid= async (id) => {
     try {
@@ -242,6 +202,13 @@ React.useState({ open: false, title: '', description: '', onConfirm: null });
     setHistoryModalOpen(false);
     setHistoryMember(null);
   };
+
+  const handleOpenPaymentCollection = (member) => {
+    setPaymentMember(member);
+    setPaymentModalOpen(true);
+  };
+
+  const handleClosePaymentCollection = () => setPaymentModalOpen(false);
 
   const handleUpdateMember = async (updatedData) => {
     try {
@@ -410,14 +377,7 @@ React.useState({ open: false, title: '', description: '', onConfirm: null });
   <Button
     variant="contained"
     size="small"
-    onClick={() =>
-  setConfirmAction({
-    open: true,
-    title: 'Confirm Payment',
-    description: 'Are you sure you want to mark this member as paid?',
-    onConfirm: () => markAsPaid(row.id)
-  })
-}
+    onClick={() => handleOpenPaymentCollection(row)}
     startIcon={
       loadingId === row._id && loadingType === 'pay' ? (
         <CircularProgress size={20} sx={{ color: 'white' }} />
@@ -514,6 +474,12 @@ React.useState({ open: false, title: '', description: '', onConfirm: null });
       {/* Add Member Modal */}
       <AddMemberModal open={isModalOpen} handleClose={handleCloseModal} />
 
+      <PaymentCollectionModal
+        open={paymentModalOpen}
+        onClose={handleClosePaymentCollection}
+        member={paymentMember}
+        onPaymentSuccess={fetchMembers}
+      />
       <PaymentHistoryModal
         open={historyModalOpen}
         onClose={handleClosePaymentHistory}
