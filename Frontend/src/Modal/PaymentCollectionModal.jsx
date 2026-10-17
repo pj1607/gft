@@ -212,8 +212,18 @@ const PaymentCollectionModal = ({ open, onClose, member, onPaymentSuccess }) => 
               {status === 'NeedsReview' && <Typography color="warning.main">Payment received but needs owner review. Do not collect again until you check the provider dashboard.</Typography>}
               {status === 'Failed' && <Typography color="error.main">Payment failed. Create a new request if needed.</Typography>}
             </Box>
-            {(status === 'Expired' || status === 'NeedsReview' || status === 'Failed') && (
-              <Button onClick={() => setPaymentIntent(null)} sx={{ mt: 1, color: '#90caf9' }}>Back to payment details</Button>
+            {status === 'Expired' && (
+              <Button onClick={() => {
+                setPaymentIntent(null);
+                setError('Before retrying, verify in Razorpay that the expired QR received no payment.');
+              }} sx={{ mt: 1, color: '#90caf9' }}>
+                I verified no payment — create a new QR
+              </Button>
+            )}
+            {status === 'Failed' && (
+              <Button onClick={() => setPaymentIntent(null)} sx={{ mt: 1, color: '#90caf9' }}>
+                Back to payment details
+              </Button>
             )}
           </Box>
         )}
