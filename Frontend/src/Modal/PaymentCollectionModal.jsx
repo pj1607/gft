@@ -41,6 +41,14 @@ const getMonthsCovered = (amount, feePlans = [], fallbackMonthlyFee = 0) => {
   return packageMultiple || 0;
 };
 
+const getSuggestedAmount = (monthsDue, feePlans = [], fallbackMonthlyFee = 0) => {
+  const matchingPlan = feePlans.find((plan) => Number(plan.months) === monthsDue);
+  if (matchingPlan && Number(matchingPlan.amount) > 0) return String(matchingPlan.amount);
+  const monthlyPlan = feePlans.find((plan) => Number(plan.months) === 1);
+  const monthlyFee = Number(monthlyPlan?.amount) || Number(fallbackMonthlyFee) || 0;
+  return monthlyFee > 0 ? String(monthlyFee * monthsDue) : '';
+};
+
 const PaymentCollectionModal = ({ open, onClose, member, onPaymentSuccess }) => {
   const [method, setMethod] = React.useState('Cash');
   const [amount, setAmount] = React.useState('');
@@ -70,9 +78,7 @@ const PaymentCollectionModal = ({ open, onClose, member, onPaymentSuccess }) => 
         feePlans: Array.isArray(data.feePlans) ? data.feePlans : [],
       };
       setUpiSettings(settings);
-      const monthlyPlan = settings.feePlans.find((plan) => Number(plan.months) === 1);
-      const baseFee = Number(monthlyPlan?.amount) || Number(member.monthlyFee) || 0;
-      setAmount(baseFee > 0 ? String(baseFee * monthsDue) : '');
+      setAmount(getSuggestedAmount(monthsDue, settings.feePlans, member.monthlyFee));
     }).catch(() => {
       if (!cancelled) {
         setUpiSettings({ upiId: '', gymName: '', feePlans: [] });
