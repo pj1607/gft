@@ -44,6 +44,7 @@ const ProfileModal = ({ open, handleClose }) => {
   const [upiId, setUpiId] = useState('');
   const [gymName, setGymName] = useState('');
   const [upiSaving, setUpiSaving] = useState(false);
+  const [feePlans, setFeePlans] = useState([]);
 
   const [isNameEditable, setIsNameEditable] = useState(false);
   const [isEmailEditable, setIsEmailEditable] = useState(false);
@@ -65,6 +66,9 @@ const ProfileModal = ({ open, handleClose }) => {
         setEmail(data.email || '');
         setUpiId(data.upiId || '');
         setGymName(data.gymName || '');
+        setFeePlans(Array.isArray(data.feePlans) ? data.feePlans.map((plan) => ({
+          name: plan.name || '', months: String(plan.months ?? 1), amount: String(plan.amount ?? ''),
+        })) : []);
       } catch (err) {
         console.error('Failed to fetch profile', err);
       } finally {
@@ -130,11 +134,16 @@ const ProfileModal = ({ open, handleClose }) => {
       setUpiSaving(true);
       const { data } = await axios.put(
         `${API}/auth/profile/upi`,
-        { upiId, gymName },
+        { upiId, gymName, feePlans: feePlans.map((plan) => ({
+          name: plan.name.trim(), months: Number(plan.months), amount: Number(plan.amount),
+        })) },
         { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
       );
       setUpiId(data.user?.upiId || upiId.trim().toLowerCase());
       setGymName(data.user?.gymName || gymName.trim());
+      setFeePlans((data.user?.feePlans || []).map((plan) => ({
+        name: plan.name || '', months: String(plan.months), amount: String(plan.amount),
+      })));
       setSnackbar({ open: true, message: 'UPI details saved. Your QR is updated.', severity: 'success' });
     } catch (error) {
       setSnackbar({
@@ -273,9 +282,45 @@ const ProfileModal = ({ open, handleClose }) => {
               </Typography>
             </Box>
           )}
-          <Button fullWidth variant="contained" onClick={handleSaveUpi} disabled={upiSaving || !upiId.trim()}
+          
+          <Typography variant="subtitle1" fontWeight="bold" sx={{ mt: 3, mb: 1 }}>Gym Membership Fee Plans</Typography>
+          <Typography variant="body2" sx={{ color: '#bbb', mb: 2 }}>
+            Create your prices, for example 1 month ₹600 or 3 months ₹2,000. When you collect a fee, GFT uses the amount to calculate the months covered automatically. Keep one 1-month plan as the base.
+          </Typography>
+          {feePlans.map((plan, index) => (
+            <Box key={index} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: '1.2fr 0.8fr 1fr auto' }, gap: 1, mb: 1.5, alignItems: 'center' }}>
+              <TextField fullWidth label="Plan name" placeholder="Monthly" value={plan.name}
+                onChange={(e) => setFeePlans((old) => old.map((item, i) => i === index ? { ...item, name: e.target.value } : item))}
+                InputProps={{ style: { color: '#fff' } }} InputLabelProps={{ style: { color: '#ccc' } }} />
+              <TextField fullWidth label="Months" type="number" value={plan.months}
+                inputProps={{ min: 1, max: 36, step: 1 }}
+                onChange={(e) => setFeePlans((old) => old.map((item, i) => i === index ? { ...item, months: e.target.value } : item))}
+                InputProps={{ style: { color: '#fff' } }} InputLabelProps={{ style: { color: '#ccc' } }} />
+              <TextField fullWidth label="Total price (₹)" type="number" value={plan.amount}
+                inputProps={{ min: 1, step: '0.01' }}
+                onChange={(e) => setFeePlans((old) => old.map((item, i) => i === index ? { ...item, amount: e.target.value } : item))}
+                InputProps={{ style: { color: '#fff' } }} InputLabelProps={{ style: { color: '#ccc' } }} />
+              <Button color="error" onClick={() => setFeePlans((old) => old.filter((_, i) => i !== index))}
+                sx={{ minWidth: { xs: '100%', sm: 0 }, gridColumn: { xs: '1 / -1', sm: 'auto' }, textTransform: 'none' }}>
+                Remove
+              </Button>
+            </Box>
+          ))}
+          <Button fullWidth variant="outlined" onClick={() => setFeePlans((old) => [...old, {
+            name: '', months: old.some((plan) => Number(plan.months) === 1) ? '3' : '1', amount: '',
+          }])} disabled={feePlans.length >= 12}
+            sx={{ mt: 1, borderColor: '#777', color: '#fff', textTransform: 'none' }}>
+            + Add Fee Plan
+          </Button>
+          {!feePlans.some((plan) => Number(plan.months) === 1) && (
+            <Typography variant="caption" sx={{ color: '#ffb74d', display: 'block', mt: 1 }}>
+              Add a 1-month plan. GFT uses it to calculate amounts that are not an exact package price.
+            </Typography>
+          )}
+
+          <Button fullWidth variant="contained" onClick={handleSaveUpi} disabled={upiSaving || feePlans.length === 0 || !feePlans.some((plan) => Number(plan.months) === 1)}
             sx={{ mt: 2, textTransform: 'none', fontWeight: 'bold' }}>
-            {upiSaving ? <CircularProgress size={22} sx={{ color: 'white' }} /> : 'Save UPI & Update QR'}
+            {upiSaving ? <CircularProgress size={22} sx={{ color: 'white' }} /> : 'Save UPI & Fee Plans'}
           </Button>
         </Box>
 
