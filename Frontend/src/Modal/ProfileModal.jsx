@@ -144,7 +144,7 @@ const ProfileModal = ({ open, handleClose }) => {
       setFeePlans((data.user?.feePlans || []).map((plan) => ({
         name: plan.name || '', months: String(plan.months), amount: String(plan.amount),
       })));
-      setSnackbar({ open: true, message: 'UPI details saved. Your QR is updated.', severity: 'success' });
+      setSnackbar({ open: true, message: upiId.trim() ? 'UPI details and fee plans saved.' : 'Gym fee plans saved. Add a UPI ID whenever you want to accept UPI.', severity: 'success' });
     } catch (error) {
       setSnackbar({
         open: true,
