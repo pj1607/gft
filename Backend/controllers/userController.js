@@ -292,7 +292,7 @@ export const updateUpiSettings = async (req, res) => {
     const gymName = typeof req.body.gymName === 'string' ? req.body.gymName.trim().slice(0, 80) : '';
     const feePlansInput = req.body.feePlans;
 
-    if (!upiId || !/^[a-zA-Z0-9._-]{2,256}@[a-zA-Z0-9.-]{2,64}$/.test(upiId)) {
+    if (upiId && !/^[a-zA-Z0-9._-]{2,256}@[a-zA-Z0-9.-]{2,64}$/.test(upiId)) {
       return res.status(400).json({ message: 'Enter a valid UPI ID, for example gymname@upi.' });
     }
     if (!Array.isArray(feePlansInput) || feePlansInput.length > 12) {
