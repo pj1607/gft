@@ -36,7 +36,15 @@ const validatePaymentInputs = ({ amount, feePlans = [], fallbackMonthlyFee = 0 }
   } else if (amountPaise % monthlyFeePaise === 0) {
     monthsCovered = amountPaise / monthlyFeePaise;
   } else {
-    return { error: 'Amount must match a saved fee plan or be a whole-number multiple of the 1-month fee.' };
+    const packageMultiple = plans
+      .filter((plan) => amountPaise % plan.amountPaise === 0)
+      .map((plan) => ({ months: plan.months * (amountPaise / plan.amountPaise) }))
+      .filter((plan) => Number.isInteger(plan.months) && plan.months >= 1 && plan.months <= 36)
+      .sort((a, b) => b.months - a.months)[0];
+    if (!packageMultiple) {
+      return { error: 'Amount must match a saved fee plan or a whole-number multiple of a saved plan.' };
+    }
+    monthsCovered = packageMultiple.months;
   }
 
   if (!Number.isSafeInteger(monthsCovered) || monthsCovered < 1 || monthsCovered > 36) {
