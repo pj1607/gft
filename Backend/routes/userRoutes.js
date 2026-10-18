@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import {
   registerUser, loginUser, sendOtp, checkOtp, resetPassword,
-  updateProfile, getProfile,demoLogin
+  updateProfile, getProfile, updateUpiSettings, demoLogin
 } from '../controllers/userController.js';
 import { verifyToken } from '../auth/auth.js';
 import User from '../models/userModel.js'
@@ -22,6 +22,7 @@ router.post('/check-otp', checkOtp);
 router.post('/reset-password', resetPassword);
 router.put('/profile/update', verifyToken, updateProfile);
 router.get('/profile', verifyToken, getProfile);
+router.put('/profile/upi', verifyToken, updateUpiSettings);
 
 router.post("/demo-login", demoLogin);
 
