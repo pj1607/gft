@@ -28,6 +28,8 @@ const userSchema = new mongoose.Schema({
     },
   },
   picture: String,
+  upiId: { type: String, trim: true, lowercase: true, default: '' },
+  gymName: { type: String, trim: true, maxlength: 80, default: '' },
   resetPasswordToken: String,
   resetPasswordExpires: Date,
 }, { timestamps: true });
