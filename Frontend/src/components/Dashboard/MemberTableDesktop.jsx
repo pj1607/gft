@@ -145,7 +145,8 @@ React.useEffect(() => {
     )
     .filter((member) =>
       member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.phone.toLowerCase().includes(searchTerm.toLowerCase())
+      member.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (member.rollNumber || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
 
@@ -312,13 +313,28 @@ const handleUpdateMember = async (updatedData) => {
 
 
   const handleOpenModal = () => setIsModalOpen(true);
- const handleCloseModal = () => {
+ const handleCloseModal = (newMember) => {
     setIsModalOpen(false);
     fetchMembers();
+    if (newMember?.rollNumber) {
+      setSnackbar({
+        open: true,
+        message: `Member added successfully! Roll No.: ${newMember.rollNumber}`,
+        severity: 'success',
+      });
+    }
   };
 
 
   const columns = [
+    {
+      field: 'rollNumber',
+      headerName: 'Roll No.',
+      minWidth: 110,
+      flex: 0.6,
+      sortable: true,
+      renderCell: ({ value }) => value || 'Not assigned',
+    },
     {
       field: 'name',
       headerName: 'Name',
