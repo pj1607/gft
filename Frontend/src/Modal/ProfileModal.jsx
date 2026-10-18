@@ -41,6 +41,9 @@ const ProfileModal = ({ open, handleClose }) => {
 
   const [userName, setUserName] = useState('');
   const [email, setEmail] = useState('');
+  const [upiId, setUpiId] = useState('');
+  const [gymName, setGymName] = useState('');
+  const [upiSaving, setUpiSaving] = useState(false);
 
   const [isNameEditable, setIsNameEditable] = useState(false);
   const [isEmailEditable, setIsEmailEditable] = useState(false);
@@ -60,6 +63,8 @@ const ProfileModal = ({ open, handleClose }) => {
         });
         setUserName(data.username || '');
         setEmail(data.email || '');
+        setUpiId(data.upiId || '');
+        setGymName(data.gymName || '');
       } catch (err) {
         console.error('Failed to fetch profile', err);
       } finally {
@@ -119,6 +124,40 @@ const ProfileModal = ({ open, handleClose }) => {
   }
   };
 
+
+  const handleSaveUpi = async () => {
+    try {
+      setUpiSaving(true);
+      const { data } = await axios.put(
+        `${API}/auth/profile/upi`,
+        { upiId, gymName },
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+      );
+      setUpiId(data.user?.upiId || upiId.trim().toLowerCase());
+      setGymName(data.user?.gymName || gymName.trim());
+      setSnackbar({ open: true, message: 'UPI details saved. Your QR is updated.', severity: 'success' });
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.message || 'Unable to save UPI details.',
+        severity: 'error',
+      });
+    } finally {
+      setUpiSaving(false);
+    }
+  };
+
+  const ownerUpiUri = upiId.trim()
+    ? 'upi://pay?' + new URLSearchParams({
+        pa: upiId.trim().toLowerCase(),
+        pn: gymName.trim() || 'Gym Fee Tracker',
+        cu: 'INR',
+      }).toString()
+    : '';
+  const ownerQrUrl = ownerUpiUri
+    ? 'https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=' + encodeURIComponent(ownerUpiUri)
+    : '';
+
   return (
     <>
     <Modal open={open} onClose={handleClose}>
@@ -134,6 +173,8 @@ const ProfileModal = ({ open, handleClose }) => {
           color: '#fff',
           boxShadow: 24,
           borderRadius: 2,
+          maxHeight: '90vh',
+          overflowY: 'auto',
         }}
       >
         {/* Close Button */}
@@ -200,6 +241,43 @@ const ProfileModal = ({ open, handleClose }) => {
           InputLabelProps={{ style: { color: '#ccc' } }}
           sx={{ mb: 3 }}
         />
+
+
+        <Box sx={{ mt: 1, mb: 2, p: 2, border: '1px solid #444', borderRadius: 2 }}>
+          <Typography variant="subtitle1" fontWeight="bold" mb={1}>Gym UPI & QR Code</Typography>
+          <Typography variant="body2" sx={{ color: '#bbb', mb: 2 }}>
+            Add your own UPI ID once. GFT saves it for future collections and refreshes your QR whenever you update these details.
+          </Typography>
+          <TextField
+            fullWidth label="UPI ID (e.g. gymname@upi)" value={upiId}
+            onChange={(e) => setUpiId(e.target.value)}
+            InputProps={{ style: { color: '#fff' } }}
+            InputLabelProps={{ style: { color: '#ccc' } }}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            fullWidth label="Gym name (optional)" value={gymName}
+            onChange={(e) => setGymName(e.target.value)}
+            inputProps={{ maxLength: 80 }}
+            InputProps={{ style: { color: '#fff' } }}
+            InputLabelProps={{ style: { color: '#ccc' } }}
+          />
+          {ownerQrUrl && (
+            <Box sx={{ mt: 2, textAlign: 'center' }}>
+              <Typography variant="body2" sx={{ color: '#bbb', mb: 1 }}>Your reusable UPI QR preview</Typography>
+              <Box component="img" src={ownerQrUrl} alt="Gym reusable UPI QR code" sx={{
+                width: 190, height: 190, objectFit: 'contain', bgcolor: '#fff', p: 1, borderRadius: 1,
+              }} />
+              <Typography variant="caption" display="block" sx={{ color: '#aaa', mt: 1 }}>
+                Payment collection will prefill the amount for each member.
+              </Typography>
+            </Box>
+          )}
+          <Button fullWidth variant="contained" onClick={handleSaveUpi} disabled={upiSaving || !upiId.trim()}
+            sx={{ mt: 2, textTransform: 'none', fontWeight: 'bold' }}>
+            {upiSaving ? <CircularProgress size={22} sx={{ color: 'white' }} /> : 'Save UPI & Update QR'}
+          </Button>
+        </Box>
 
         {/* Save Button */}
         <Button
