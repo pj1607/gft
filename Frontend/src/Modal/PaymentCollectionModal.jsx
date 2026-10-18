@@ -13,23 +13,41 @@ const money = (value) => new Intl.NumberFormat('en-IN', {
   style: 'currency', currency: 'INR', maximumFractionDigits: 2,
 }).format(Number(value) || 0);
 
+const getMonthsCovered = (amount, feePlans = [], fallbackMonthlyFee = 0) => {
+  const amountPaise = Math.round(Number(amount) * 100);
+  if (!Number.isSafeInteger(amountPaise) || amountPaise < 100) return 0;
+
+  const plans = feePlans.map((plan) => ({
+    months: Number(plan.months),
+    amountPaise: Math.round(Number(plan.amount) * 100),
+  })).filter((plan) => Number.isInteger(plan.months) && plan.months >= 1
+    && plan.months <= 36 && Number.isSafeInteger(plan.amountPaise) && plan.amountPaise >= 100);
+
+  const exactPlan = plans.filter((plan) => plan.amountPaise === amountPaise)
+    .sort((a, b) => b.months - a.months)[0];
+  if (exactPlan) return exactPlan.months;
+
+  const monthlyPlan = plans.find((plan) => plan.months === 1);
+  const monthlyPaise = monthlyPlan?.amountPaise || Math.round(Number(fallbackMonthlyFee) * 100);
+  if (!Number.isSafeInteger(monthlyPaise) || monthlyPaise < 100 || amountPaise % monthlyPaise !== 0) return 0;
+  const months = amountPaise / monthlyPaise;
+  return Number.isInteger(months) && months >= 1 && months <= 36 ? months : 0;
+};
+
 const PaymentCollectionModal = ({ open, onClose, member, onPaymentSuccess }) => {
   const [method, setMethod] = React.useState('Cash');
-  const [monthlyFee, setMonthlyFee] = React.useState('');
   const [amount, setAmount] = React.useState('');
   const [reference, setReference] = React.useState('');
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState('');
-  const [upiSettings, setUpiSettings] = React.useState({ upiId: '', gymName: '' });
+  const [upiSettings, setUpiSettings] = React.useState({ upiId: '', gymName: '', feePlans: [] });
   const [qrVisible, setQrVisible] = React.useState(false);
 
   React.useEffect(() => {
     if (!open || !member?._id) return undefined;
     let cancelled = false;
-    const fee = Number(member.monthlyFee) || 0;
     const monthsDue = Math.max(Number(member.unpaidFor) || 1, 1);
-    setMonthlyFee(fee > 0 ? String(fee) : '');
-    setAmount(fee > 0 ? String(fee * monthsDue) : '');
+    setAmount('');
     setMethod('Cash');
     setReference('');
     setError('');
@@ -38,22 +56,33 @@ const PaymentCollectionModal = ({ open, onClose, member, onPaymentSuccess }) => 
     axios.get(API + '/auth/profile', {
       headers: { Authorization: 'Bearer ' + localStorage.getItem('token') },
     }).then(({ data }) => {
-      if (!cancelled) setUpiSettings({ upiId: data.upiId || '', gymName: data.gymName || '' });
+      if (cancelled) return;
+      const settings = {
+        upiId: data.upiId || '',
+        gymName: data.gymName || '',
+        feePlans: Array.isArray(data.feePlans) ? data.feePlans : [],
+      };
+      setUpiSettings(settings);
+      const monthlyPlan = settings.feePlans.find((plan) => Number(plan.months) === 1);
+      const baseFee = Number(monthlyPlan?.amount) || Number(member.monthlyFee) || 0;
+      setAmount(baseFee > 0 ? String(baseFee * monthsDue) : '');
     }).catch(() => {
-      if (!cancelled) setUpiSettings({ upiId: '', gymName: '' });
+      if (!cancelled) {
+        setUpiSettings({ upiId: '', gymName: '', feePlans: [] });
+        const fee = Number(member.monthlyFee) || 0;
+        setAmount(fee > 0 ? String(fee * monthsDue) : '');
+      }
     });
     return () => { cancelled = true; };
   }, [open, member?._id, member?.monthlyFee, member?.unpaidFor]);
 
   const amountPaise = Math.round(Number(amount) * 100);
-  const feePaise = Math.round(Number(monthlyFee) * 100);
-  const validValues = Number.isSafeInteger(amountPaise) && amountPaise >= 100
-    && Number.isSafeInteger(feePaise) && feePaise >= 100;
-  const hasRemainder = validValues && amountPaise % feePaise !== 0;
-  const monthsCovered = validValues && !hasRemainder ? amountPaise / feePaise : 0;
+  const validAmount = Number.isSafeInteger(amountPaise) && amountPaise >= 100;
+  const monthsCovered = getMonthsCovered(amount, upiSettings.feePlans, member?.monthlyFee);
+  const validPayment = validAmount && monthsCovered > 0;
 
   const upiUri = React.useMemo(() => {
-    if (!upiSettings.upiId || !validValues || hasRemainder || monthsCovered < 1) return '';
+    if (!upiSettings.upiId || !validPayment) return '';
     const params = new URLSearchParams({
       pa: upiSettings.upiId,
       pn: upiSettings.gymName || 'Gym Fee Tracker',
@@ -62,7 +91,7 @@ const PaymentCollectionModal = ({ open, onClose, member, onPaymentSuccess }) => 
       tn: 'Gym fee - ' + (member?.name || 'Member'),
     });
     return 'upi://pay?' + params.toString();
-  }, [upiSettings, validValues, hasRemainder, monthsCovered, amountPaise, member?.name]);
+  }, [upiSettings, validPayment, amountPaise, member?.name]);
 
   const qrImageUrl = upiUri
     ? 'https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=' + encodeURIComponent(upiUri)
@@ -72,7 +101,8 @@ const PaymentCollectionModal = ({ open, onClose, member, onPaymentSuccess }) => 
     setBusy(true); setError('');
     try {
       await axios.post(API + '/payments/members/' + member._id + '/cash', {
-        amount: Number(amount), monthlyFee: Number(monthlyFee), reference: reference.trim() || undefined,
+        amount: Number(amount),
+        reference: reference.trim() || undefined,
       }, { headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } });
       onPaymentSuccess?.(); onClose();
     } catch (err) {
@@ -85,7 +115,6 @@ const PaymentCollectionModal = ({ open, onClose, member, onPaymentSuccess }) => 
     try {
       await axios.post(API + '/payments/members/' + member._id + '/upi', {
         amount: Number(amount),
-        monthlyFee: Number(monthlyFee),
         reference: reference.trim() || undefined,
         confirmedReceived: true,
       }, { headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } });
@@ -97,6 +126,7 @@ const PaymentCollectionModal = ({ open, onClose, member, onPaymentSuccess }) => 
 
   const handleClose = () => { if (!busy) onClose(); };
   const showQr = method === 'UPI' && qrVisible && Boolean(qrImageUrl);
+  const hasMonthlyPlan = upiSettings.feePlans.some((plan) => Number(plan.months) === 1);
 
   return (
     <Modal open={open} onClose={handleClose} aria-labelledby="collect-fee-title">
@@ -121,29 +151,31 @@ const PaymentCollectionModal = ({ open, onClose, member, onPaymentSuccess }) => 
 
         {!showQr && (
           <>
-            <TextField fullWidth label="Monthly fee (₹)" type="number" value={monthlyFee}
-              onChange={(e) => { setMonthlyFee(e.target.value); setQrVisible(false); }}
-              inputProps={{ min: 1, step: '0.01' }}
-              sx={{ mt: 2, '& .MuiInputBase-root': { color: '#fff' }, '& .MuiInputLabel-root': { color: '#bbb' } }}
-              helperText="Saved to this member after a successful payment."
-              FormHelperTextProps={{ sx: { color: '#aaa' } }} />
             <TextField fullWidth label="Amount to collect (₹)" type="number" value={amount}
-              onChange={(e) => { setAmount(e.target.value); setQrVisible(false); }}
+              onChange={(e) => { setAmount(e.target.value); setQrVisible(false); setError(''); }}
               inputProps={{ min: 1, step: '0.01' }}
               sx={{ mt: 2, '& .MuiInputBase-root': { color: '#fff' }, '& .MuiInputLabel-root': { color: '#bbb' } }} />
             <Box sx={{ mt: 2, p: 2, border: '1px solid #444', borderRadius: 2 }}>
-              <Typography variant="body2" sx={{ color: '#aaa' }}>Payment amount</Typography>
+              <Typography variant="body2" sx={{ color: '#aaa' }}>Payment summary</Typography>
               <Typography variant="h5" fontWeight="bold" sx={{ mt: 0.5 }}>{money(amount)}</Typography>
-              {monthsCovered > 0 && !hasRemainder ? (
+              {validPayment ? (
                 <Typography variant="body2" sx={{ color: '#81c784', mt: 0.5 }}>
                   Covers {monthsCovered} complete {monthsCovered === 1 ? 'month' : 'months'}
+                  {upiSettings.feePlans.find((plan) => Number(plan.months) === monthsCovered && Math.round(Number(plan.amount) * 100) === amountPaise)
+                    ? ' · ' + upiSettings.feePlans.find((plan) => Number(plan.months) === monthsCovered && Math.round(Number(plan.amount) * 100) === amountPaise).name
+                    : ''}
                 </Typography>
               ) : (
                 <Typography variant="body2" sx={{ color: '#ffb74d', mt: 0.5 }}>
-                  Enter an amount that is an exact multiple of the monthly fee. Partial months are not supported yet.
+                  Enter a saved plan's exact price or a whole-number multiple of the 1-month fee (up to 36 months).
                 </Typography>
               )}
             </Box>
+            {!hasMonthlyPlan && (
+              <Alert severity="warning" sx={{ mt: 2 }}>
+                Add a 1-month gym fee plan in Profile Settings to calculate months accurately.
+              </Alert>
+            )}
             <Divider sx={{ borderColor: '#444', my: 2 }} />
             <Typography fontWeight="bold" mb={1}>Payment method</Typography>
             <RadioGroup row value={method} onChange={(e) => { setMethod(e.target.value); setQrVisible(false); setError(''); }}>
@@ -182,14 +214,14 @@ const PaymentCollectionModal = ({ open, onClose, member, onPaymentSuccess }) => 
               Back to payment details
             </Button>
             <Alert severity="warning" sx={{ mt: 2, textAlign: 'left' }}>
-              Gym Fee Tracker cannot automatically verify this static QR payment. Do not confirm based only on a screenshot or the member saying they paid.
+              GFT cannot automatically verify this static QR payment. Do not confirm based only on a screenshot or the member's claim.
             </Alert>
           </Box>
         )}
 
         {!showQr && (
           <Button fullWidth variant="contained"
-            disabled={busy || !validValues || hasRemainder || monthsCovered < 1 || (method === 'UPI' && !upiSettings.upiId)}
+            disabled={busy || !validPayment || (method === 'UPI' && !upiSettings.upiId)}
             onClick={method === 'Cash' ? handleCashPayment : () => setQrVisible(true)}
             startIcon={busy ? <CircularProgress size={18} color="inherit" /> : (method === 'Cash' ? <PaymentsIcon /> : <QrCode2Icon />)}
             sx={{ mt: 2, py: 1.2, bgcolor: '#2e7d32', '&:hover': { bgcolor: '#1b5e20' }, textTransform: 'none', fontWeight: 'bold' }}>
@@ -207,7 +239,7 @@ const PaymentCollectionModal = ({ open, onClose, member, onPaymentSuccess }) => 
         )}
 
         <Typography variant="caption" sx={{ display: 'block', color: '#888', mt: 2 }}>
-          Static UPI QR payments require manual verification. Only confirm after checking your actual bank or UPI transaction history.
+          UPI payments require manual verification. Only confirm after checking your actual bank or UPI transaction history.
         </Typography>
       </Box>
     </Modal>
