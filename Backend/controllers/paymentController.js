@@ -4,19 +4,41 @@ import Member from '../models/memberModel.js';
 
 const rupeesToPaise = (value) => Math.round(Number(value) * 100);
 
-const validatePaymentInputs = ({ amount, monthlyFee }) => {
+const validatePaymentInputs = ({ amount, feePlans = [], fallbackMonthlyFee = 0 }) => {
   const amountPaise = rupeesToPaise(amount);
-  const monthlyFeePaise = rupeesToPaise(monthlyFee);
   if (!Number.isSafeInteger(amountPaise) || amountPaise < 100) {
     return { error: 'Enter a payment amount of at least ₹1.' };
   }
+
+  const plans = feePlans
+    .map((plan) => ({
+      name: plan.name,
+      months: Number(plan.months),
+      amountPaise: rupeesToPaise(plan.amount),
+    }))
+    .filter((plan) => Number.isInteger(plan.months) && plan.months >= 1
+      && plan.months <= 36 && Number.isSafeInteger(plan.amountPaise) && plan.amountPaise >= 100);
+
+  // Exact package prices take priority, e.g. ₹2,000 can represent a discounted 3-month plan.
+  const exactPlan = plans
+    .filter((plan) => plan.amountPaise === amountPaise)
+    .sort((a, b) => b.months - a.months)[0];
+
+  const oneMonthPlan = plans.find((plan) => plan.months === 1);
+  const monthlyFeePaise = oneMonthPlan?.amountPaise || rupeesToPaise(fallbackMonthlyFee);
   if (!Number.isSafeInteger(monthlyFeePaise) || monthlyFeePaise < 100) {
-    return { error: 'Enter the member monthly fee (at least ₹1).' };
+    return { error: 'Add a 1-month fee plan in Profile Settings before recording payments.' };
   }
-  if (amountPaise % monthlyFeePaise !== 0) {
-    return { error: 'The amount must cover complete months. Adjust the amount or monthly fee; partial-month payments are not supported yet.' };
+
+  let monthsCovered;
+  if (exactPlan) {
+    monthsCovered = exactPlan.months;
+  } else if (amountPaise % monthlyFeePaise === 0) {
+    monthsCovered = amountPaise / monthlyFeePaise;
+  } else {
+    return { error: 'Amount must match a saved fee plan or be a whole-number multiple of the 1-month fee.' };
   }
-  const monthsCovered = amountPaise / monthlyFeePaise;
+
   if (!Number.isSafeInteger(monthsCovered) || monthsCovered < 1 || monthsCovered > 36) {
     return { error: 'A payment can cover between 1 and 36 complete months.' };
   }
@@ -80,8 +102,11 @@ const recordManualPayment = async (req, res, method) => {
       }
     }
 
-    const monthlyFee = req.body.monthlyFee ?? member.monthlyFee;
-    const details = validatePaymentInputs({ amount: req.body.amount, monthlyFee });
+    const details = validatePaymentInputs({
+      amount: req.body.amount,
+      feePlans: req.user.feePlans || [],
+      fallbackMonthlyFee: member.monthlyFee,
+    });
     if (details.error) return res.status(400).json({ message: details.error });
 
     const reference = typeof req.body.reference === 'string' ? req.body.reference.trim().slice(0, 100) : null;
