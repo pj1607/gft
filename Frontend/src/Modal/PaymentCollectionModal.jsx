@@ -29,9 +29,16 @@ const getMonthsCovered = (amount, feePlans = [], fallbackMonthlyFee = 0) => {
 
   const monthlyPlan = plans.find((plan) => plan.months === 1);
   const monthlyPaise = monthlyPlan?.amountPaise || Math.round(Number(fallbackMonthlyFee) * 100);
-  if (!Number.isSafeInteger(monthlyPaise) || monthlyPaise < 100 || amountPaise % monthlyPaise !== 0) return 0;
-  const months = amountPaise / monthlyPaise;
-  return Number.isInteger(months) && months >= 1 && months <= 36 ? months : 0;
+  if (Number.isSafeInteger(monthlyPaise) && monthlyPaise >= 100 && amountPaise % monthlyPaise === 0) {
+    const months = amountPaise / monthlyPaise;
+    if (Number.isInteger(months) && months >= 1 && months <= 36) return months;
+  }
+  const packageMultiple = plans
+    .filter((plan) => amountPaise % plan.amountPaise === 0)
+    .map((plan) => plan.months * (amountPaise / plan.amountPaise))
+    .filter((months) => Number.isInteger(months) && months >= 1 && months <= 36)
+    .sort((a, b) => b - a)[0];
+  return packageMultiple || 0;
 };
 
 const PaymentCollectionModal = ({ open, onClose, member, onPaymentSuccess }) => {
