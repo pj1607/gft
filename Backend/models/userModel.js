@@ -30,6 +30,14 @@ const userSchema = new mongoose.Schema({
   picture: String,
   upiId: { type: String, trim: true, lowercase: true, default: '' },
   gymName: { type: String, trim: true, maxlength: 80, default: '' },
+  feePlans: {
+    type: [{
+      name: { type: String, required: true, trim: true, maxlength: 50 },
+      months: { type: Number, required: true, min: 1, max: 36 },
+      amount: { type: Number, required: true, min: 1 },
+    }],
+    default: [],
+  },
   resetPasswordToken: String,
   resetPasswordExpires: Date,
 }, { timestamps: true });
