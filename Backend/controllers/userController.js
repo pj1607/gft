@@ -274,7 +274,7 @@ export const updateProfile = async (req, res) => {
 //GET-PROFILE
 export const getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('username email');
+    const user = await User.findById(req.user._id).select('username email upiId gymName');
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -283,6 +283,28 @@ export const getProfile = async (req, res) => {
     res.status(200).json(user);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+export const updateUpiSettings = async (req, res) => {
+  try {
+    const upiId = typeof req.body.upiId === 'string' ? req.body.upiId.trim().toLowerCase() : '';
+    const gymName = typeof req.body.gymName === 'string' ? req.body.gymName.trim().slice(0, 80) : '';
+
+    if (!upiId || !/^[a-zA-Z0-9._-]{2,256}@[a-zA-Z0-9.-]{2,64}$/.test(upiId)) {
+      return res.status(400).json({ message: 'Enter a valid UPI ID, for example gymname@upi.' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { upiId, gymName },
+      { new: true, runValidators: true, select: 'username email upiId gymName' }
+    );
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+    return res.status(200).json({ message: 'UPI settings saved.', user });
+  } catch (error) {
+    console.error('Update UPI settings failed:', error);
+    return res.status(500).json({ message: 'Unable to save UPI settings.' });
   }
 };
 
