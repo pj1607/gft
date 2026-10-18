@@ -1,45 +1,31 @@
-# Dynamic UPI QR payment setup
+# Cash and static UPI QR payments
 
-Gym Fee Tracker uses Razorpay's single-use, fixed-amount UPI QR Code API. The backend creates the QR; the frontend never receives the Razorpay secret. A member is marked paid only after a signed `qr_code.credited` webhook confirms a captured INR payment for the exact expected amount.
+Gym Fee Tracker uses the gym owner's own UPI ID. No Razorpay account, API keys, webhook, or payment gateway integration is required for this workflow.
 
-## 1. Configure backend environment
+## 1. Set up the gym UPI ID
 
-Copy `Backend/.env.example` to `Backend/.env` and set:
+1. Start the backend and frontend and sign in as the gym owner.
+2. Open **Profile Settings**.
+3. Enter the gym's UPI ID (for example, `gymname@upi`) and an optional gym name.
+4. Select **Save UPI & Update QR**. GFT saves these details to the owner's profile and displays a reusable QR preview.
+5. To change the UPI ID later, edit it in the same section and save again. The QR preview updates to the new details.
 
-- `MONGO_URI`
-- `JWT_SECRET`
-- `RAZORPAY_KEY_ID`
-- `RAZORPAY_KEY_SECRET`
-- `RAZORPAY_WEBHOOK_SECRET`
+The saved profile QR is reusable. When collecting a specific member's fee, GFT creates a UPI payment URI with that payment's amount prefilled.
 
-Use Razorpay Test Mode credentials first. Never put the key secret or webhook secret in the frontend environment, and never commit the real values.
+## 2. Collect a fee
 
-## 2. Configure the Razorpay webhook
+1. Open the member's fee collection modal and enter the monthly fee and total amount.
+2. Choose **UPI QR**, then select **Show Prefilled UPI QR**.
+3. Ask the member to scan the QR and complete the payment in their UPI app.
+4. Verify the actual credit in the gym's bank account or UPI app. Do not rely on a screenshot or the member's claim.
+5. Only after verifying receipt, click **Confirm UPI Payment Received**. GFT then updates the member's status and payment history.
 
-In the Razorpay Dashboard, open **Account & Settings → Webhooks** (wording may vary), add a webhook URL that points to the backend:
+The amount must be an exact multiple of the member's monthly fee and can cover 1–36 complete months. Partial-month payments are not supported in this version.
 
-`https://YOUR-BACKEND-DOMAIN/payments/razorpay/webhook`
+## 3. Important notes
 
-For local testing, expose your local backend with a trusted HTTPS tunnel and use the tunnel URL. A provider cannot call `localhost` on your computer.
-
-Subscribe to the `qr_code.credited` event and use the same webhook secret in `RAZORPAY_WEBHOOK_SECRET`. Save the webhook. The endpoint verifies the signature against the raw request body.
-
-## 3. Test the workflow
-
-1. Start MongoDB and the backend.
-2. Start the frontend and log in as the gym owner.
-3. Add or edit a test member and set their monthly fee.
-4. Click **Mark as Paid**, enter an amount that is an exact multiple of the monthly fee, and choose **Dynamic UPI QR**.
-5. Scan the QR using a UPI app supported by your Razorpay account and complete a test payment.
-6. Wait for the signed webhook. The modal polls the backend payment-intent status and should show **Payment confirmed**.
-7. Open Payment History and verify the amount, UPI method, reference, and months covered.
-8. Test Cash separately and confirm it records only after the owner clicks **Confirm Cash Received**.
-9. Test invalid amounts, missing credentials, an expired QR, a duplicate webhook delivery, and an invalid webhook signature.
-
-## Important behavior
-
-- QR codes are single-use, fixed to the amount entered, and expire after 30 minutes.
-- The owner must not manually mark a QR payment as paid. Provider webhook confirmation is the source of truth.
-- The amount must cover whole months at the member's saved monthly fee. Partial-month payments are not supported in this first version.
-- If a QR expires or a webhook reports unexpected payment data, check the Razorpay Dashboard before retrying. The app requires explicit confirmation that no payment was received before it clears an expired or review-required request.
-- Razorpay account activation, QR API availability, UPI test behavior, and transaction fees depend on the provider account and current provider terms.
+- This is a **static/manual confirmation** workflow, not automatic payment verification. GFT cannot know whether a transfer actually succeeded.
+- UPI apps may handle amount-prefilled payment requests differently. The member should check the recipient and amount before authorizing payment.
+- QR images are rendered through the QR Server image endpoint. The encoded UPI payment URI, including the UPI ID and prefilled amount for a payment QR, is sent to that service to render the image. Do not use this approach if that third-party exposure is unacceptable; use a QR-generation library that runs locally in the frontend instead.
+- Direct UPI transfers typically avoid payment-gateway processing fees, but the owner's bank or UPI provider terms still apply.
+- Never store real payment credentials in source control. This workflow does not require Razorpay credentials.
