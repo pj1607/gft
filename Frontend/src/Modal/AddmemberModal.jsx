@@ -70,13 +70,7 @@ const handleCloseSnackbar = () => {
         setStatus('Paid');
         setLastPaidDate(dayjs());
         setUnpaidFor('0');
-        handleClose();
-  
-         setSnackbar({
-  open: true,
-  message: "member added successfully",
-  severity: "success",
-});
+        handleClose(res.data.newMember);
 
       } else {
        
