@@ -9,10 +9,6 @@ import cors from 'cors';
 dotenv.config();
 
 const app = express();
-
-// Razorpay signs the exact raw webhook body. This parser must run before
-// express.json() so the webhook signature can be verified securely.
-app.use('/payments/razorpay/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
 
 connectDB();
