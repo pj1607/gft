@@ -210,6 +210,18 @@ React.useState({ open: false, title: '', description: '', onConfirm: null });
 
   const handleClosePaymentCollection = () => setPaymentModalOpen(false);
 
+const handlePaymentSuccess = async (updatedMember) => {
+  if (updatedMember && updatedMember._id) {
+    setData((prev) => prev.map((current) => current._id === updatedMember._id
+      ? { ...current, ...updatedMember, id: updatedMember._id,
+          lastPaidDate: updatedMember.lastPaidDate
+            ? dayjs(updatedMember.lastPaidDate).format('DD MMMM YYYY')
+            : current.lastPaidDate }
+      : current));
+  }
+  await fetchMembers();
+};
+
   const handleUpdateMember = async (updatedData) => {
     try {
        setLoading(true)
@@ -478,7 +490,7 @@ React.useState({ open: false, title: '', description: '', onConfirm: null });
         open={paymentModalOpen}
         onClose={handleClosePaymentCollection}
         member={paymentMember}
-        onPaymentSuccess={fetchMembers}
+        onPaymentSuccess={handlePaymentSuccess}
       />
       <PaymentHistoryModal
         open={historyModalOpen}
