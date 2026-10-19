@@ -113,11 +113,12 @@ const PaymentCollectionModal = ({ open, onClose, member, onPaymentSuccess }) => 
   const handleCashPayment = async () => {
     setBusy(true); setError('');
     try {
-      await axios.post(API + '/payments/members/' + member._id + '/cash', {
+      const response = await axios.post(API + '/payments/members/' + member._id + '/cash', {
         amount: Number(amount),
         reference: reference.trim() || undefined,
       }, { headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } });
-      onPaymentSuccess?.(); onClose();
+      await onPaymentSuccess?.(response.data.member);
+      onClose();
     } catch (err) {
       setError(err.response?.data?.message || 'Could not record the cash payment.');
     } finally { setBusy(false); }
@@ -126,12 +127,13 @@ const PaymentCollectionModal = ({ open, onClose, member, onPaymentSuccess }) => 
   const handleUpiPayment = async () => {
     setBusy(true); setError('');
     try {
-      await axios.post(API + '/payments/members/' + member._id + '/upi', {
+      const response = await axios.post(API + '/payments/members/' + member._id + '/upi', {
         amount: Number(amount),
         reference: reference.trim() || undefined,
         confirmedReceived: true,
       }, { headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } });
-      onPaymentSuccess?.(); onClose();
+      await onPaymentSuccess?.(response.data.member);
+      onClose();
     } catch (err) {
       setError(err.response?.data?.message || 'Could not record the UPI payment.');
     } finally { setBusy(false); }
