@@ -115,9 +115,8 @@ const applySuccessfulPayment = async ({ member, amountPaise, monthlyFeePaise, mo
     // Payments that do not clear all arrears are applied to overdue fees first.
     paidThrough = previousPaidThrough?.isValid() ? previousPaidThrough : now;
   } else if (overdueMonths > 0) {
-    // Once arrears are cleared, keep at least one full month before the next due date.
-    const extraMonths = Math.max(monthsCovered - overdueMonths, 1);
-    paidThrough = now.add(extraMonths, 'month');
+    // Once the payment clears arrears, grant the full number of months purchased from today.
+    paidThrough = now.add(monthsCovered, 'month');
   } else {
     // Advance payments extend the existing coverage period instead of resetting it.
     const baseDate = previousPaidThrough?.isValid() && previousPaidThrough.isAfter(now)
