@@ -6,6 +6,7 @@ import Dashboard from './Pages/Dashboardpage.jsx';
 import Login from './Pages/Loginpage.jsx';
 import User from './Pages/Userpage.jsx';
 import Attendancepage from './Pages/Attendancepage.jsx';
+import MemberAttendanceHistory from './Pages/MemberAttendanceHistory.jsx';
 import CheckInpage from './Pages/CheckInpage.jsx';
 import Navbar from './components/Navbar.jsx';
 import Footer from './components/Footer.jsx';
@@ -93,6 +94,14 @@ export const App = () => {
               element={
                 <ProtectedRoute>
                   <Attendancepage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/members/:memberId/attendance"
+              element={
+                <ProtectedRoute>
+                  <MemberAttendanceHistory />
                 </ProtectedRoute>
               }
             />
