@@ -4,6 +4,7 @@ import {
   getGymInfo,
   checkInMember,
   getAttendance,
+  getMemberAttendanceHistory,
 } from '../controllers/attendanceController.js';
 import { verifyToken } from '../auth/auth.js';
 
@@ -18,6 +19,7 @@ const checkInLimiter = rateLimit({
 });
 
 router.get('/gym-info', verifyToken, getGymInfo);
+router.get('/member/:memberId/history', verifyToken, getMemberAttendanceHistory);
 router.get('/', verifyToken, getAttendance);
 router.post('/check-in/:ownerId', checkInLimiter, checkInMember);
 
