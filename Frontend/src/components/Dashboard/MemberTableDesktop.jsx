@@ -145,7 +145,8 @@ React.useEffect(() => {
     )
     .filter((member) =>
       member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.phone.toLowerCase().includes(searchTerm.toLowerCase())
+      member.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (member.rollNumber || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
 
@@ -312,19 +313,46 @@ const handleUpdateMember = async (updatedData) => {
 
 
   const handleOpenModal = () => setIsModalOpen(true);
- const handleCloseModal = () => {
+ const handleCloseModal = (newMember) => {
     setIsModalOpen(false);
     fetchMembers();
+    if (newMember?.rollNumber) {
+      setSnackbar({
+        open: true,
+        message: `Member added successfully! Roll No.: ${newMember.rollNumber}`,
+        severity: 'success',
+      });
+    }
   };
 
 
   const columns = [
+    {
+      field: 'rollNumber',
+      headerName: 'Roll No.',
+      minWidth: 110,
+      flex: 0.6,
+      sortable: true,
+      renderCell: ({ value }) => value || 'Not assigned',
+    },
     {
       field: 'name',
       headerName: 'Name',
       flex: 1,
       cellClassName: 'name-column--cell',
       sortable: false,
+      renderCell: ({ row }) => (
+        <Link
+          to={`/members/${row.id}/attendance`}
+          style={{
+            color: '#90caf9',
+            textDecoration: 'none',
+            fontWeight: 600,
+          }}
+        >
+          {row.name}
+        </Link>
+      ),
     },
     { field: 'phone', headerName: 'Contact Details', flex: 1,sortable: false, },
     {

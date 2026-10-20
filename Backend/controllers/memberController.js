@@ -1,7 +1,36 @@
 import Member from '../models/memberModel.js';
+import GymCounter from '../models/gymCounterModel.js';
 import mongoose from 'mongoose';
 import dayjs from "dayjs";
 
+
+
+const getNextRollNumber = async (ownerId) => {
+  let counter;
+
+  try {
+    counter = await GymCounter.findOneAndUpdate(
+      { ownerId },
+      { $inc: { sequence: 1 } },
+      {
+        new: true,
+        upsert: true,
+        setDefaultsOnInsert: true,
+      }
+    );
+  } catch (error) {
+    // Concurrent first-time counter creation can race on the unique ownerId.
+    if (error.code !== 11000) throw error;
+
+    counter = await GymCounter.findOneAndUpdate(
+      { ownerId },
+      { $inc: { sequence: 1 } },
+      { new: true }
+    );
+  }
+
+  return `G${String(counter.sequence).padStart(3, '0')}`;
+};
 
 // ALL-MEMBERS
 export const allMembers = async (req, res) => {
@@ -69,7 +98,10 @@ export const addMember = async (req, res) => {
       return res.status(409).json({ error: 'Already registered with this Mobile No' });
     }
 
+    const rollNumber = await getNextRollNumber(req.user._id);
+
     const newMember = new Member({
+      rollNumber,
       name,
       phone,
       status,

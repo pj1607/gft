@@ -10,16 +10,15 @@ import {
   CircularProgress
 } from '@mui/material';
 import Logo from '../assets/images/logo.png';
-import MenuIcon from '@mui/icons-material/Menu'; 
+import MenuIcon from '@mui/icons-material/Menu';
 import ProfileModal from '../Modal/ProfileModal.jsx';
 import axios from 'axios';
-import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext.jsx';
-import CloseIcon from '@mui/icons-material/Close'; 
-const API = import.meta.env.VITE_API_URL;
-
+import CloseIcon from '@mui/icons-material/Close';
 import Snackbar from '@mui/material/Snackbar';
 import MuiAlert from '@mui/material/Alert';
+
+const API = import.meta.env.VITE_API_URL;
 
 const Navbar = () => {
   const [openDrawer, setOpenDrawer] = useState(false);
@@ -31,39 +30,34 @@ const Navbar = () => {
 
   const [openProfileModal, setOpenProfileModal] = useState(false);
   const [snackbar, setSnackbar] = useState({
-      open: false,
-      message: '',
-      severity: 'success', 
-    });
-    
-    const handleCloseSnackbar = () => {
-      setSnackbar({ ...snackbar, open: false });
-    };
+    open: false,
+    message: '',
+    severity: 'success',
+  });
+
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
 
   const handleLogout = async () => {
     try {
       setLoading(true);
       logout();
-       setSnackbar({
-  open: true,
-  message: 'Logged out successfully.',
-  severity: "success",
-});
+      setSnackbar({
+        open: true,
+        message: 'Logged out successfully.',
+        severity: 'success',
+      });
       navigate('/');
-
     } catch (error) {
       console.error('Logout failed:', error);
     } finally {
-      setLoading(false); 
+      setLoading(false);
     }
   };
 
   const handleLogoClick = () => {
-    if (isLoggedIn) {
-      navigate('/user');
-    } else {
-      navigate('/');
-    }
+    navigate(isLoggedIn ? '/user' : '/');
   };
 
   const guestNavItems = [
@@ -74,6 +68,7 @@ const Navbar = () => {
   const loggedInNavItems = [
     { text: 'Home', link: '/user' },
     { text: 'Dashboard', link: '/dashboard' },
+    { text: 'Attendance', link: '/attendance' },
     { text: 'Profile', action: () => setOpenProfileModal(true) },
     { text: 'Logout', action: handleLogout },
   ];
@@ -162,12 +157,8 @@ const Navbar = () => {
               objectFit: 'cover',
               borderRadius: '20%',
             }}
-            onMouseOver={(e) =>
-              (e.currentTarget.style.transform = 'scale(1.1)')
-            }
-            onMouseOut={(e) =>
-              (e.currentTarget.style.transform = 'scale(1)')
-            }
+            onMouseOver={(e) => (e.currentTarget.style.transform = 'scale(1.1)')}
+            onMouseOut={(e) => (e.currentTarget.style.transform = 'scale(1)')}
           />
         </Box>
 
@@ -191,7 +182,6 @@ const Navbar = () => {
             </IconButton>
           )}
 
-          {/* Drawer for mobile */}
           <Drawer
             anchor="right"
             open={openDrawer}
@@ -207,21 +197,21 @@ const Navbar = () => {
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 2,
-                 position: 'relative',
+                position: 'relative',
               }}
             >
-               <IconButton
-      onClick={() => setOpenDrawer(false)}
-      sx={{
-        position: 'absolute',
-        top: 16,
-        right: 16,
-        color: '#fff',
-        zIndex: 1300, 
-      }}
-    >
-      <CloseIcon />
-    </IconButton>
+              <IconButton
+                onClick={() => setOpenDrawer(false)}
+                sx={{
+                  position: 'absolute',
+                  top: 16,
+                  right: 16,
+                  color: '#fff',
+                  zIndex: 1300,
+                }}
+              >
+                <CloseIcon />
+              </IconButton>
               {renderNavButtons(true)}
             </Box>
           </Drawer>
@@ -230,27 +220,26 @@ const Navbar = () => {
         </Stack>
       </Stack>
 
-      {/* Modals */}
       <ProfileModal
         open={openProfileModal}
         handleClose={() => setOpenProfileModal(false)}
       />
-       <Snackbar
-            open={snackbar.open}
-            autoHideDuration={3000}
-            onClose={handleCloseSnackbar}
-            anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-          >
-            <MuiAlert
-              onClose={handleCloseSnackbar}
-              severity={snackbar.severity}
-              elevation={6}
-              variant="filled"
-              sx={{ width: '100%' }}
-            >
-              {snackbar.message}
-            </MuiAlert>
-          </Snackbar>
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <MuiAlert
+          onClose={handleCloseSnackbar}
+          severity={snackbar.severity}
+          elevation={6}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </MuiAlert>
+      </Snackbar>
     </Box>
   );
 };

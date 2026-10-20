@@ -2,6 +2,11 @@ import mongoose from 'mongoose';
 import dayjs from 'dayjs';
 
 const memberSchema = new mongoose.Schema({
+    rollNumber: {
+        type: String,
+        trim: true,
+        immutable: true,
+    },
     name: {
         type: String,
         required: true,
@@ -39,6 +44,16 @@ const memberSchema = new mongoose.Schema({
 }
 
 }, { timestamps: true });
+
+memberSchema.index(
+    { createdBy: 1, rollNumber: 1 },
+    {
+        unique: true,
+        partialFilterExpression: {
+            rollNumber: { $type: 'string' },
+        },
+    }
+);
 
 const Member = mongoose.model('Member', memberSchema);
 
