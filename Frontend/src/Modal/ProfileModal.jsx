@@ -119,12 +119,12 @@ const ProfileModal = ({ open, handleClose }) => {
 
       const [profileResponse, upiResponse] = await Promise.all([
         axios.put(
-          `\${API}/auth/profile/update`,
+          `${API}/auth/profile/update`,
           { username: userName.trim(), email: email.trim() },
           { headers }
         ),
         axios.put(
-          `${API}/auth/profile/update`,
+          `${API}/auth/profile/upi`,
           { upiId, gymName, feePlans: normalizedFeePlans },
           { headers }
         ),
