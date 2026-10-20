@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Typography, keyframes } from '@mui/material';
-import pjLogo from '../assets/images/logo2.png'
+import Logo from '../assets/images/logo.png';
 
 
 const Footer = () => {
@@ -16,7 +16,7 @@ const Footer = () => {
       }}
     >
       <Box display="flex" justifyContent="center" alignItems="center" gap={1}>
-        <img src={pjLogo} alt="PJ Logo" width="18" height="18" style={{ borderRadius: '10px' }} />
+        <img src={Logo} alt="Logo" width="18" height="18" style={{ borderRadius: '10px' }} />
       </Box>
     </Box>
   );
