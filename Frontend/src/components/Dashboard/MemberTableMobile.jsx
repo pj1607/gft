@@ -379,7 +379,14 @@ React.useState({ open: false, title: '', description: '', onConfirm: null });
     filteredRows.map((row) => (
       <Card key={row._id} sx={{ backgroundColor: '#1e1e1e', color: 'white' }}>
         <CardContent>
-          <Typography fontWeight="bold">{row.name}</Typography>
+          <Typography fontWeight="bold">
+            <Link
+              to={`/members/${row.id}/attendance`}
+              style={{ color: '#90caf9', textDecoration: 'none' }}
+            >
+              {row.name}
+            </Link>
+          </Typography>
           <Typography
             variant="body2"
             sx={{ color: '#90caf9', fontWeight: 700, mb: 0.5 }}
