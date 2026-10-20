@@ -43,7 +43,6 @@ const ProfileModal = ({ open, handleClose }) => {
   const [email, setEmail] = useState('');
   const [upiId, setUpiId] = useState('');
   const [gymName, setGymName] = useState('');
-  const [upiSaving, setUpiSaving] = useState(false);
   const [feePlans, setFeePlans] = useState([]);
 
   const [isNameEditable, setIsNameEditable] = useState(false);
@@ -90,69 +89,77 @@ const ProfileModal = ({ open, handleClose }) => {
   }, [isEmailEditable]);
 
   const handleSave = async () => {
+    const headers = {
+      Authorization: \`Bearer \${localStorage.getItem('token')}\`,
+    };
+    const normalizedFeePlans = feePlans.map((plan) => ({
+      name: plan.name.trim(),
+      months: Number(plan.months),
+      amount: Number(plan.amount),
+    }));
+
+    if (
+      normalizedFeePlans.length === 0 ||
+      !normalizedFeePlans.some((plan) => plan.months === 1) ||
+      normalizedFeePlans.some((plan) =>
+        !plan.name || !Number.isInteger(plan.months) || plan.months < 1 ||
+        plan.months > 36 || !Number.isFinite(plan.amount) || plan.amount <= 0
+      )
+    ) {
+      setSnackbar({
+        open: true,
+        message: 'Please add valid fee plans, including a 1-month plan, before saving.',
+        severity: 'error',
+      });
+      return;
+    }
+
     try {
-        setLoading(true);
-      await axios.put(
-        `${API}/auth/profile/update`,
-        { username: userName, email },
-        { headers: {
-    'Authorization': `Bearer ${localStorage.getItem('token')}`,  
-  } }
-      );
-      setUsername(userName); 
-      localStorage.setItem('username', userName);
-    
-        setSnackbar({
-    open: true,
-    message: 'Changes saved!',
-    severity: "info",
-  });
+      setLoading(true);
+
+      const [profileResponse, upiResponse] = await Promise.all([
+        axios.put(
+          \`\${API}/auth/profile/update\`,
+          { username: userName.trim(), email: email.trim() },
+          { headers }
+        ),
+        axios.put(
+          \`\${API}/auth/profile/upi\`,
+          { upiId, gymName, feePlans: normalizedFeePlans },
+          { headers }
+        ),
+      ]);
+
+      const savedUsername = profileResponse.data.username || userName.trim();
+      setUsername(savedUsername);
+      localStorage.setItem('username', savedUsername);
+
+      setUpiId(upiResponse.data.user?.upiId ?? upiId.trim().toLowerCase());
+      setGymName(upiResponse.data.user?.gymName ?? gymName.trim());
+      setFeePlans((upiResponse.data.user?.feePlans || normalizedFeePlans).map((plan) => ({
+        name: plan.name || '',
+        months: String(plan.months),
+        amount: String(plan.amount),
+      })));
+
+      setSnackbar({
+        open: true,
+        message: 'Profile, UPI details, and fee plans saved successfully.',
+        severity: 'success',
+      });
       setIsNameEditable(false);
       setIsEmailEditable(false);
       handleClose();
-    } 
-    catch (error) {
-           const errormessage =
-            error.response?.data?.error ||
-            error.response?.data?.message ||
-            'Something went wrong';
-            
-           setSnackbar({
-  open: true,
-  message: errormessage,
-  severity: "error",
-});
-    }
-    finally {
-    setLoading(false); 
-  }
-  };
-
-
-  const handleSaveUpi = async () => {
-    try {
-      setUpiSaving(true);
-      const { data } = await axios.put(
-        `${API}/auth/profile/upi`,
-        { upiId, gymName, feePlans: feePlans.map((plan) => ({
-          name: plan.name.trim(), months: Number(plan.months), amount: Number(plan.amount),
-        })) },
-        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
-      );
-      setUpiId(data.user?.upiId || upiId.trim().toLowerCase());
-      setGymName(data.user?.gymName || gymName.trim());
-      setFeePlans((data.user?.feePlans || []).map((plan) => ({
-        name: plan.name || '', months: String(plan.months), amount: String(plan.amount),
-      })));
-      setSnackbar({ open: true, message: upiId.trim() ? 'UPI details and fee plans saved.' : 'Gym fee plans saved. Add a UPI ID whenever you want to accept UPI.', severity: 'success' });
     } catch (error) {
       setSnackbar({
         open: true,
-        message: error.response?.data?.message || 'Unable to save UPI details.',
+        message: error.response?.data?.error ||
+          error.response?.data?.message ||
+          'Unable to save all changes. Please check your details and try again.',
         severity: 'error',
       });
     } finally {
-      setUpiSaving(false);
+      setLoading(false);
     }
   };
 
@@ -318,10 +325,6 @@ const ProfileModal = ({ open, handleClose }) => {
             </Typography>
           )}
 
-          <Button fullWidth variant="contained" onClick={handleSaveUpi} disabled={upiSaving || feePlans.length === 0 || !feePlans.some((plan) => Number(plan.months) === 1)}
-            sx={{ mt: 2, textTransform: 'none', fontWeight: 'bold' }}>
-            {upiSaving ? <CircularProgress size={22} sx={{ color: 'white' }} /> : 'Save UPI & Fee Plans'}
-          </Button>
         </Box>
 
         {/* Save Button */}
