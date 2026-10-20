@@ -274,7 +274,7 @@ export const updateProfile = async (req, res) => {
 //GET-PROFILE
 export const getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('username email');
+    const user = await User.findById(req.user._id).select('username email upiId gymName feePlans');
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -283,6 +283,56 @@ export const getProfile = async (req, res) => {
     res.status(200).json(user);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+export const updateUpiSettings = async (req, res) => {
+  try {
+    const upiId = typeof req.body.upiId === 'string' ? req.body.upiId.trim().toLowerCase() : '';
+    const gymName = typeof req.body.gymName === 'string' ? req.body.gymName.trim().slice(0, 80) : '';
+    const feePlansInput = req.body.feePlans;
+
+    if (upiId && !/^[a-zA-Z0-9._-]{2,256}@[a-zA-Z0-9.-]{2,64}$/.test(upiId)) {
+      return res.status(400).json({ message: 'Enter a valid UPI ID, for example gymname@upi.' });
+    }
+    if (!Array.isArray(feePlansInput) || feePlansInput.length > 12) {
+      return res.status(400).json({ message: 'Add between 1 and 12 valid fee plans.' });
+    }
+    if (feePlansInput.length === 0) {
+      return res.status(400).json({ message: 'Add at least one gym fee plan before saving.' });
+    }
+
+    const feePlans = [];
+    const seenMonths = new Set();
+    for (const plan of feePlansInput) {
+      const name = typeof plan.name === 'string' ? plan.name.trim().slice(0, 50) : '';
+      const months = Number(plan.months);
+      const amount = Number(plan.amount);
+      if (!name || !Number.isInteger(months) || months < 1 || months > 36
+        || !Number.isSafeInteger(Math.round(amount * 100)) || Math.round(amount * 100) < 100) {
+        return res.status(400).json({ message: 'Each plan needs a name, 1–36 months, and an amount of at least ₹1.' });
+      }
+      if (seenMonths.has(months)) {
+        return res.status(400).json({ message: 'Use a different duration for each fee plan.' });
+      }
+      seenMonths.add(months);
+      feePlans.push({ name, months, amount: Math.round(amount * 100) / 100 });
+    }
+
+    if (!feePlans.some((plan) => plan.months === 1)) {
+      return res.status(400).json({ message: 'Add a 1-month plan so GFT can calculate other payment durations.' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { upiId, gymName, feePlans },
+      { new: true, runValidators: true, select: 'username email upiId gymName feePlans' }
+    );
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+    return res.status(200).json({ message: 'UPI and fee plans saved.', user });
+  } catch (error) {
+    console.error('Update UPI settings failed:', error);
+    return res.status(500).json({ message: 'Unable to save UPI and fee plan settings.' });
   }
 };
 

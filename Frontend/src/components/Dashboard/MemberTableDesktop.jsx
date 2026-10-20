@@ -21,6 +21,9 @@ import SearchIcon from '@mui/icons-material/Search';
 import dayjs from 'dayjs';
 import AddMemberModal from '../../Modal/AddmemberModal';
 import EditMemberModal from '../../Modal/EditMemberModal';
+import PaymentHistoryModal from '../../Modal/PaymentHistoryModal';
+import PaymentCollectionModal from '../../Modal/PaymentCollectionModal';
+import HistoryIcon from '@mui/icons-material/History';
 import axios from 'axios';
 import {toast} from 'react-toastify'
 import { useNavigate ,Link} from 'react-router-dom';
@@ -48,6 +51,10 @@ const MemberTableDesktop = () => {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
 
 const [editModalOpen, setEditModalOpen] = React.useState(false);
+const [historyModalOpen, setHistoryModalOpen] = React.useState(false);
+const [historyMember, setHistoryMember] = React.useState(null);
+const [paymentModalOpen, setPaymentModalOpen] = React.useState(false);
+const [paymentMember, setPaymentMember] = React.useState(null);
 const [selectedMember, setSelectedMember] = React.useState(null);
 
 const [loading, setLoading] = React.useState(false);
@@ -79,6 +86,54 @@ const handleCloseEditModal = () => {
   setEditModalOpen(false);
   setSelectedMember(null);
 };
+
+const handleOpenPaymentHistory = (member) => {
+  setHistoryMember(member);
+  setHistoryModalOpen(true);
+};
+
+const handleClosePaymentHistory = () => {
+  setHistoryModalOpen(false);
+  setHistoryMember(null);
+};
+
+const handleOpenPaymentCollection = (member) => {
+  setPaymentMember(member);
+  setPaymentModalOpen(true);
+};
+
+const handleClosePaymentCollection = () => setPaymentModalOpen(false);
+
+const handlePaymentSuccess = async (updatedMember) => {
+  // Refresh first, then apply the authoritative member returned by the payment API.
+  // This ordering prevents a stale list response from overwriting the saved Paid status.
+  await fetchMembers({ silent: true });
+
+  if (!updatedMember?._id) return;
+
+  const formattedLastPaidDate = updatedMember.lastPaidDate
+    ? dayjs(updatedMember.lastPaidDate).format('DD MMMM YYYY')
+    : 'N/A';
+
+  setData((prev) => prev.map((current) =>
+    current._id === updatedMember._id || current.id === updatedMember._id
+      ? {
+          ...current,
+          ...updatedMember,
+          id: updatedMember._id,
+          lastPaidDate: formattedLastPaidDate,
+        }
+      : current
+  ));
+
+  setSnackbar({
+    open: true,
+    message: updatedMember.status === 'Paid'
+      ? 'Payment recorded successfully. Member marked as Paid.'
+      : 'Payment recorded successfully. Remaining months are still unpaid.',
+    severity: 'success',
+  });
+};
 const CustomNoRowsOverlay = () => (
   <Box
     sx={{
@@ -97,9 +152,9 @@ const CustomNoRowsOverlay = () => (
 
 
 
- const fetchMembers = async () => {
+ const fetchMembers = async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const token = localStorage.getItem("token");
       const res = await axios.get(`${API}/members/all-members`, {
        headers: {
@@ -127,7 +182,7 @@ const CustomNoRowsOverlay = () => (
 });
     }
     finally {
-    setLoading(false);
+    if (!silent) setLoading(false);
   }
   };
 
@@ -150,52 +205,7 @@ React.useEffect(() => {
     );
 
 
-const markAsPaid = async (id) => {
-  try {
-     setLoadingId(id);
-    setLoadingType('pay');
-    const res = await axios.put(
-      `${API}/members/${id}/pay`,
-      {},
-      {   headers: {
-    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-  }},
-    );
-    setData((prev) =>
-      prev.map((m) =>
-        m._id === id
-          ? {
-              ...m,
-              status: 'Paid',
-              unpaidFor: 0,
-              lastPaidDate: dayjs(res.data.lastPaidDate).format('DD MMM YYYY'),
-            }
-          : m
-      )
-    );
-
-  } catch (error) {
-   const errormessage =
-         error.response?.data?.error ||
-         error.response?.data?.message ||
-         'Failed to update payment status';
-   
-  setSnackbar({
-  open: true,
-  message: errormessage,
-  severity: "error",
-});
-
-    
-  }
-    finally {
-    setLoadingId(null);
-    setLoadingType('');
-  }
-};
-
-
-  const handleUndoMarkAsPaid = async (id) => {
+const handleUndoMarkAsPaid = async (id) => {
   try {
       setLoadingId(id);
     setLoadingType('undo');
@@ -393,14 +403,7 @@ const handleUpdateMember = async (updatedData) => {
   <Button
     variant="contained"
     size="small"
-   onClick={() =>
-  setConfirmAction({
-    open: true,
-    title: 'Confirm Payment',
-    description: 'Are you sure you want to mark this member as paid?',
-    onConfirm: () => markAsPaid(row.id)
-  })
-}
+   onClick={() => handleOpenPaymentCollection(row)}
 
     startIcon={
       loadingId === row.id && loadingType === 'pay' ? (
@@ -468,6 +471,22 @@ onClick={() =>
     },
     { field: 'lastPaidDate', headerName: 'Last Paid', flex: 1,sortable: false, },
     { field: 'unpaidFor', headerName: 'Unpaid (Months)', flex: 1,sortable: false, },
+    {
+      field: 'history',
+      headerName: 'Payment History',
+      flex: 1,
+      sortable: false,
+      renderCell: ({ row }) => (
+        <Button
+          size="small"
+          startIcon={<HistoryIcon />}
+          onClick={() => handleOpenPaymentHistory(row)}
+          sx={{ color: '#E89B4A', textTransform: 'none', fontWeight: 'bold' }}
+        >
+          History
+        </Button>
+      ),
+    },
     {
       field: 'delete',
       headerName: 'Delete Member',
@@ -678,6 +697,17 @@ onClick={() =>
       <AddMemberModal
         open={isModalOpen}
         handleClose={handleCloseModal}
+      />
+      <PaymentCollectionModal
+        open={paymentModalOpen}
+        onClose={handleClosePaymentCollection}
+        member={paymentMember}
+        onPaymentSuccess={handlePaymentSuccess}
+      />
+      <PaymentHistoryModal
+        open={historyModalOpen}
+        onClose={handleClosePaymentHistory}
+        member={historyMember}
       />
       <EditMemberModal
         loading={loading}

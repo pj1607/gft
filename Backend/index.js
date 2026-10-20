@@ -31,6 +31,7 @@ app.use(cors({
 
 // Routes
 app.use('/members', memberRoutes);
+app.use('/payments', paymentRoutes);
 app.use('/auth', userRoutes);
 app.use('/attendance', attendanceRoutes);
 
@@ -39,6 +40,9 @@ app.get('/', (req, res) => {
 });
 
 const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
+});
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });
