@@ -89,9 +89,9 @@ const ProfileModal = ({ open, handleClose }) => {
   }, [isEmailEditable]);
 
   const handleSave = async () => {
-    const headers = {
-      Authorization: \`Bearer \${localStorage.getItem('token')}\`,
-    };
+   const headers = {
+  Authorization: `Bearer ${localStorage.getItem('token')}`,
+};
     const normalizedFeePlans = feePlans.map((plan) => ({
       name: plan.name.trim(),
       months: Number(plan.months),
@@ -119,12 +119,12 @@ const ProfileModal = ({ open, handleClose }) => {
 
       const [profileResponse, upiResponse] = await Promise.all([
         axios.put(
-          \`\${API}/auth/profile/update\`,
+          `\${API}/auth/profile/update`,
           { username: userName.trim(), email: email.trim() },
           { headers }
         ),
         axios.put(
-          \`\${API}/auth/profile/upi\`,
+          `${API}/auth/profile/update`,
           { upiId, gymName, feePlans: normalizedFeePlans },
           { headers }
         ),
