@@ -15,7 +15,7 @@ connectDB();
 
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://gym-fee-tracker.vercel.app'
+  'https://gft-zeta.vercel.app/'
 ];
 
 app.use(cors({
