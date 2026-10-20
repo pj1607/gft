@@ -15,9 +15,15 @@ const memberSchema = new mongoose.Schema({
         enum: ['Paid', 'Unpaid'],
         required: true,
     },
+    // Date of the most recent payment transaction.
     lastPaidDate: {
         type: Date,
         default: Date.now,
+    },
+    // Date through which membership fees are covered; status expires at this date.
+    paidThroughDate: {
+        type: Date,
+        default: null,
     },
     unpaidFor: {
         type: Number,
@@ -38,6 +44,10 @@ const memberSchema = new mongoose.Schema({
         default: null
     },
     previousLastPaidDate: {
+        type: Date,
+        default: null
+    },
+    previousPaidThroughDate: {
         type: Date,
         default: null
     },
