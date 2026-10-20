@@ -105,19 +105,34 @@ const handleOpenPaymentCollection = (member) => {
 const handleClosePaymentCollection = () => setPaymentModalOpen(false);
 
 const handlePaymentSuccess = async (updatedMember) => {
-  if (updatedMember?._id) {
-    setData((prev) => prev.map((current) => current._id === updatedMember._id
+  // Refresh first, then apply the authoritative member returned by the payment API.
+  // This ordering prevents a stale list response from overwriting the saved Paid status.
+  await fetchMembers();
+
+  if (!updatedMember?._id) return;
+
+  const formattedLastPaidDate = updatedMember.lastPaidDate
+    ? dayjs(updatedMember.lastPaidDate).format('DD MMMM YYYY')
+    : 'N/A';
+
+  setData((prev) => prev.map((current) =>
+    current._id === updatedMember._id || current.id === updatedMember._id
       ? {
           ...current,
           ...updatedMember,
           id: updatedMember._id,
-          lastPaidDate: updatedMember.lastPaidDate
-            ? dayjs(updatedMember.lastPaidDate).format('DD MMMM YYYY')
-            : current.lastPaidDate,
+          lastPaidDate: formattedLastPaidDate,
         }
-      : current));
-  }
-  await fetchMembers();
+      : current
+  ));
+
+  setSnackbar({
+    open: true,
+    message: updatedMember.status === 'Paid'
+      ? 'Payment recorded successfully. Member marked as Paid.'
+      : 'Payment recorded successfully. Remaining months are still unpaid.',
+    severity: 'success',
+  });
 };
 const CustomNoRowsOverlay = () => (
   <Box
