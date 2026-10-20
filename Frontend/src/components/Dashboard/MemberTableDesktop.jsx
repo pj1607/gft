@@ -341,6 +341,18 @@ const handleUpdateMember = async (updatedData) => {
       flex: 1,
       cellClassName: 'name-column--cell',
       sortable: false,
+      renderCell: ({ row }) => (
+        <Link
+          to={`/members/${row.id}/attendance`}
+          style={{
+            color: '#90caf9',
+            textDecoration: 'none',
+            fontWeight: 600,
+          }}
+        >
+          {row.name}
+        </Link>
+      ),
     },
     { field: 'phone', headerName: 'Contact Details', flex: 1,sortable: false, },
     {
