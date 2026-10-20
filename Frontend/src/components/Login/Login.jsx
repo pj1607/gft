@@ -343,36 +343,6 @@ const Login = () => {
         >
           Forgot Password?
         </Button>
-        {/* Demo Login Button */}
-<Box mt={2} display="flex" justifyContent="center">
-<Button
-  onClick={handleDemoLogin}
-  variant="outlined"
-  fullWidth
-  disabled={demoLoading}
-  sx={{
-    maxWidth: '320px',
-    borderRadius: '6px',
-    fontWeight: 'bold',
-    textTransform: 'none',
-    borderColor: '#555',
-    color: '#fff',
-    backgroundColor: '#2c2c2c',
-    '&:hover': {
-      backgroundColor: '#333',
-      borderColor: '#777',
-    },
-  }}
->
-  {demoLoading ? (
-    <CircularProgress size={24} sx={{ color: 'white' }} />
-  ) : (
-    "Try as Demo User"
-  )}
-</Button>
-
-</Box>
-
         <ForgotPasswordModal open={modalOpen} onClose={() => setModalOpen(false)} />
       </Paper>
        <Snackbar

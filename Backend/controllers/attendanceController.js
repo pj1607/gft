@@ -53,8 +53,21 @@ export const checkInMember = async (req, res) => {
       });
     }
 
-    const now = new Date();
-    const attendanceDate = now.toISOString().slice(0, 10);
+   const now = new Date();
+
+const dateParts = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Kolkata',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+}).formatToParts(now);
+
+const parts = Object.fromEntries(
+  dateParts.map(({ type, value }) => [type, value])
+);
+
+const attendanceDate =
+  `${parts.year}-${parts.month}-${parts.day}`;
 
     try {
       const attendance = await Attendance.create({
