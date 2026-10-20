@@ -98,6 +98,50 @@ export const checkInMember = async (req, res) => {
   }
 };
 
+
+export const getMemberAttendanceHistory = async (req, res) => {
+  try {
+    const { memberId } = req.params;
+
+    if (!mongoose.isValidObjectId(memberId)) {
+      return res.status(400).json({ message: 'Invalid member ID.' });
+    }
+
+    const member = await Member.findOne({
+      _id: memberId,
+      createdBy: req.user._id,
+    }).select('_id name phone rollNumber');
+
+    if (!member) {
+      return res.status(404).json({ message: 'Member not found.' });
+    }
+
+    const records = await Attendance.find({
+      ownerId: req.user._id,
+      memberId: member._id,
+    })
+      .sort({ attendanceDate: -1, checkInAt: -1 })
+      .select('attendanceDate checkInAt')
+      .lean();
+
+    return res.status(200).json({
+      member: {
+        id: member._id,
+        name: member.name,
+        phone: member.phone,
+        rollNumber: member.rollNumber,
+      },
+      totalPresentDays: records.length,
+      attendance: records,
+    });
+  } catch (error) {
+    console.error('Member attendance history error:', error);
+    return res.status(500).json({
+      message: 'Unable to load member attendance history.',
+    });
+  }
+};
+
 export const getAttendance = async (req, res) => {
   try {
     const date = req.query.date;
