@@ -2,27 +2,59 @@ import Member from '../models/memberModel.js';
 import mongoose from 'mongoose';
 import dayjs from "dayjs";
 
+const inferPaidThroughDate = (member) => {
+  if (member.paidThroughDate) {
+    const storedDate = dayjs(member.paidThroughDate);
+    if (storedDate.isValid()) return storedDate;
+  }
+
+  // Infer coverage for existing records created before paidThroughDate was added.
+  const latestPayment = [...(member.paymentHistory || [])]
+    .filter((payment) => payment.status === 'Paid' && payment.paidAt)
+    .sort((a, b) => new Date(b.paidAt) - new Date(a.paidAt))[0];
+
+  if (latestPayment) {
+    const paidAt = dayjs(latestPayment.paidAt);
+    if (paidAt.isValid()) {
+      return paidAt.add(Math.max(Number(latestPayment.monthsCovered) || 1, 1), 'month');
+    }
+  }
+
+  const legacyDate = dayjs(member.lastPaidDate);
+  return legacyDate.isValid() ? legacyDate.add(1, 'month') : null;
+};
+
 
 // ALL-MEMBERS
 export const allMembers = async (req, res) => {
   try {
     const members = await Member.find({ createdBy: req.user._id }).sort({ createdAt: -1 });
-    const now = new Date();
+    const now = dayjs();
 
     const updatedMembers = await Promise.all(
       members.map(async (member) => {
-        if (member.status === 'Paid' && member.lastPaidDate) {
-          const paidDate = new Date(member.lastPaidDate);
-          const monthDiff =
-            (now.getFullYear() - paidDate.getFullYear()) * 12 +
-            (now.getMonth() - paidDate.getMonth());
+        let needsSave = false;
 
-          if (monthDiff >= 1) {
-            member.status = 'Unpaid';
-            member.unpaidFor = monthDiff;
-            await member.save();
+        // One-time compatibility migration for members saved before paidThroughDate existed.
+        if (!member.paidThroughDate) {
+          const inferredDate = inferPaidThroughDate(member);
+          if (inferredDate) {
+            member.paidThroughDate = inferredDate.toDate();
+            needsSave = true;
           }
         }
+
+        if (member.status === 'Paid' && member.paidThroughDate) {
+          const paidThrough = dayjs(member.paidThroughDate);
+          // A member stays Paid for the full coverage period and becomes Unpaid only on the due date.
+          if (paidThrough.isValid() && !now.isBefore(paidThrough)) {
+            member.status = 'Unpaid';
+            member.unpaidFor = Math.max(now.diff(paidThrough, 'month'), 1);
+            needsSave = true;
+          }
+        }
+
+        if (needsSave) await member.save();
         return member;
       })
     );
@@ -70,6 +102,9 @@ export const addMember = async (req, res) => {
       phone,
       status,
       lastPaidDate,
+      paidThroughDate: status === 'Paid' && dayjs(lastPaidDate).isValid()
+        ? dayjs(lastPaidDate).add(1, 'month').toDate()
+        : null,
       unpaidFor,
       monthlyFee: parsedMonthlyFee,
       createdBy: req.user._id,
@@ -137,6 +172,10 @@ export const undoPaymentStatus = async (req, res) => {
     member.status = 'Unpaid';
     member.unpaidFor = member.previousUnpaidMonths ?? 0;
     member.lastPaidDate = member.previousLastPaidDate ?? member.lastPaidDate;
+    member.paidThroughDate = member.previousPaidThroughDate
+      ?? (member.previousLastPaidDate
+        ? dayjs(member.previousLastPaidDate).add(1, 'month').toDate()
+        : member.paidThroughDate);
     await member.save();
 
     return res.status(200).json(member);
