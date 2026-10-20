@@ -5,23 +5,20 @@ import Home from './Pages/Homepage.jsx';
 import Dashboard from './Pages/Dashboardpage.jsx';
 import Login from './Pages/Loginpage.jsx';
 import User from './Pages/Userpage.jsx';
+import Attendancepage from './Pages/Attendancepage.jsx';
+import MemberAttendanceHistory from './Pages/MemberAttendanceHistory.jsx';
+import CheckInpage from './Pages/CheckInpage.jsx';
 import Navbar from './components/Navbar.jsx';
 import Footer from './components/Footer.jsx';
 import CssBaseline from '@mui/material/CssBaseline';
 import { Toaster } from 'react-hot-toast';
-import { ToastContainer } from 'react-toastify';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import PublicRoute from './components/PublicRoute.jsx';
-
 import OAuthSuccess from './Pages/OAuthSuccess.jsx';
-
-
 import axios from 'axios';
-
-axios.defaults.withCredentials = true; 
-
-
 import './style.css';
+
+axios.defaults.withCredentials = true;
 
 export const App = () => {
   return (
@@ -34,16 +31,13 @@ export const App = () => {
           flexDirection: 'column',
         }}
       >
-        <Toaster 
-        position="top-center" 
-        reverseOrder={false} 
-        toastOptions={{
-          duration: 2000,
-        }} 
-      />
+        <Toaster
+          position="top-center"
+          reverseOrder={false}
+          toastOptions={{ duration: 2000 }}
+        />
         <Navbar />
 
-        {/* Full-width page content */}
         <Box
           sx={{
             flex: 1,
@@ -53,49 +47,69 @@ export const App = () => {
             padding: 0,
           }}
         >
-         <Routes>
-          <Route path="/oauth-success" element={<OAuthSuccess />} />
-  {/* Public pages */}
-  <Route
-    path="/"
-    element={
-      <PublicRoute>
-        <Home />
-      </PublicRoute>
-    }
-  />
-  <Route
-    path="/login"
-    element={
-      <PublicRoute>
-        <Login />
-      </PublicRoute>
-    }
-  />
+          <Routes>
+            <Route path="/oauth-success" element={<OAuthSuccess />} />
 
-  {/* Protected pages */}
-  <Route
-    path="/dashboard"
-    element={
-      <ProtectedRoute>
-        <Dashboard />
-      </ProtectedRoute>
-    }
-  />
-  <Route
-    path="/user"
-    element={
-      <ProtectedRoute>
-        <User />
-      </ProtectedRoute>
-    }
-  />
-</Routes>
+            {/* Public pages */}
+            <Route
+              path="/check-in/:ownerId"
+              element={<CheckInpage />}
+            />
+            <Route
+              path="/"
+              element={
+                <PublicRoute>
+                  <Home />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/login"
+              element={
+                <PublicRoute>
+                  <Login />
+                </PublicRoute>
+              }
+            />
+
+            {/* Owner-only pages */}
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/user"
+              element={
+                <ProtectedRoute>
+                  <User />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/attendance"
+              element={
+                <ProtectedRoute>
+                  <Attendancepage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/members/:memberId/attendance"
+              element={
+                <ProtectedRoute>
+                  <MemberAttendanceHistory />
+                </ProtectedRoute>
+              }
+            />
+          </Routes>
         </Box>
 
         <Footer />
       </Box>
-        
     </>
   );
 };

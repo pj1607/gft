@@ -262,9 +262,16 @@ const handlePaymentSuccess = async (updatedMember) => {
   };
 
   const handleOpenModal = () => setIsModalOpen(true);
-  const handleCloseModal = () => {
+  const handleCloseModal = (newMember) => {
     setIsModalOpen(false);
     fetchMembers();
+    if (newMember?.rollNumber) {
+      setSnackbar({
+        open: true,
+        message: `Member added successfully! Roll No.: ${newMember.rollNumber}`,
+        severity: 'success',
+      });
+    }
   };
 
   const filteredRows = data
@@ -272,7 +279,8 @@ const handlePaymentSuccess = async (updatedMember) => {
     .filter(
       (m) =>
         m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        m.phone.toLowerCase().includes(searchTerm.toLowerCase())
+        m.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (m.rollNumber || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
   return (
@@ -364,7 +372,20 @@ const handlePaymentSuccess = async (updatedMember) => {
     filteredRows.map((row) => (
       <Card key={row._id} sx={{ backgroundColor: '#1e1e1e', color: 'white' }}>
         <CardContent>
-          <Typography fontWeight="bold">{row.name}</Typography>
+          <Typography fontWeight="bold">
+            <Link
+              to={`/members/${row.id}/attendance`}
+              style={{ color: '#90caf9', textDecoration: 'none' }}
+            >
+              {row.name}
+            </Link>
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{ color: '#90caf9', fontWeight: 700, mb: 0.5 }}
+          >
+            Roll No.: {row.rollNumber || 'Not assigned'}
+          </Typography>
           <Typography variant="body2"><PhoneAndroidIcon fontSize="small" sx={{ position: 'relative', top: '6px' }}/> {row.phone}</Typography>
           <Typography variant="body2">
            <PaymentIcon fontSize="small" sx={{ position: 'relative', top: '6px' }}/> Status:{' '}

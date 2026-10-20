@@ -52,6 +52,7 @@ const AddMemberModal = ({ open, handleClose }) => {
         setUnpaidFor('0');
         handleClose();
         setSnackbar({ open: true, message: 'Member added successfully', severity: 'success' });
+        handleClose(res.data.newMember);
       } else {
         setSnackbar({ open: true, message: 'Failed to add member.', severity: 'error' });
       }
