@@ -6,6 +6,19 @@ import { QRCodeSVG } from 'qrcode.react';
 const API_URL = import.meta.env.VITE_API_URL;
 const TIME_ZONE = 'Asia/Kolkata';
 
+const COLORS = {
+  background: '#1C1C1E',
+  white: '#FFFFFF',
+  light: '#E5E5E7',
+  red: '#B71C1C',
+  slate: '#475156',
+  muted: '#A1A1AA',
+  border: '#353538',
+  surface: '#1a1a1a',
+  success: '#183324',
+  successText: '#A5D6A7',
+};
+
 function getIndiaDate() {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: TIME_ZONE,
@@ -38,7 +51,6 @@ function formatCheckInTime(value) {
 function formatAttendanceDate(value) {
   if (!value) return '—';
 
-  // Treat YYYY-MM-DD as a calendar date, not a UTC timestamp.
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
 
   if (!match) return value;
@@ -66,70 +78,81 @@ function getAuthConfig() {
 
 const styles = {
   page: {
-    maxWidth: 1120,
+    maxWidth: 1160,
     margin: '0 auto',
     padding: '32px 20px 48px',
-    color: '#2c2e30',
+    color: COLORS.white,
     fontFamily:
       'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
   },
+
   eyebrow: {
-    color: '#8b9bb4',
-    fontSize: 12,
+    color: COLORS.muted,
+    fontSize: 11,
     fontWeight: 700,
-    letterSpacing: '0.13em',
+    letterSpacing: '0.16em',
     textTransform: 'uppercase',
     margin: '0 0 10px',
   },
+
   title: {
-    fontSize: 'clamp(27px, 4vw, 36px)',
+    fontSize: 'clamp(28px, 4vw, 36px)',
     lineHeight: 1.15,
-    letterSpacing: '-0.04em',
+    letterSpacing: '-0.045em',
     margin: 0,
-    color: '#f8fafc',
+    color: COLORS.white,
+    fontWeight: 750,
   },
+
   muted: {
-    color: '#91a0b5',
+    color: COLORS.muted,
     fontSize: 14,
     lineHeight: 1.7,
   },
+
   card: {
-    background: '#171717',
-    border: '1px solid #263142',
+    background: COLORS.surface,
+    border: `1px solid ${COLORS.border}`,
     borderRadius: 16,
-    padding: 24,
+    padding: 'clamp(19px, 3vw, 26px)',
   },
+
   button: {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    border: '1px solid #344258',
-    borderRadius: 9,
-    padding: '10px 14px',
-    background: '#080808',
-    color: '#f1f5f9',
+    gap: 9,
+    border: `1px solid ${COLORS.border}`,
+    borderRadius: 10,
+    padding: '11px 15px',
+    background: COLORS.slate,
+    color: COLORS.white,
     fontSize: 13,
-    fontWeight: 600,
+    fontWeight: 650,
     cursor: 'pointer',
+    transition:
+      'transform 180ms ease, box-shadow 180ms ease, opacity 160ms ease',
   },
+
   input: {
     display: 'block',
     width: '100%',
     boxSizing: 'border-box',
     marginTop: 8,
-    padding: '11px 12px',
-    border: '1px solid #344258',
+    padding: '12px 13px',
+    border: `1px solid ${COLORS.border}`,
     borderRadius: 9,
-    background: '#1d1e1f',
-    color: '#f1f5f9',
+    background: COLORS.background,
+    color: COLORS.white,
     fontSize: 14,
     colorScheme: 'dark',
+    outline: 'none',
   },
+
   tableCell: {
     textAlign: 'left',
-    padding: '15px 18px',
-    borderBottom: '1px solid #263142',
+    padding: '16px 18px',
+    borderBottom: `1px solid ${COLORS.border}`,
     whiteSpace: 'nowrap',
   },
 };
@@ -199,27 +222,39 @@ export default function Attendancepage() {
   }, [loadAttendance]);
 
   return (
-    <main style={styles.page}>
+    <main
+      className="attendance-page"
+      style={{
+        ...styles.page,
+        minHeight: '100vh',
+        boxSizing: 'border-box',
+      }}
+    >
+      {/* Page heading */}
       <header
+        className="attendance-header"
         style={{
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'flex-end',
+          alignItems: 'center',
           flexWrap: 'wrap',
           gap: 20,
-          marginBottom: 28,
+          marginBottom: 30,
         }}
       >
         <div>
           <p style={styles.eyebrow}>Gym management</p>
+
           <h1 style={styles.title}>Attendance</h1>
-          <p style={{ ...styles.muted, margin: '10px 0 0' }}>
-            Track member check-ins and manage your gym's daily attendance.
+
+          <p style={{ ...styles.muted, margin: '10px 0 0', maxWidth: 460 }}>
+            Every visit counts. Track your members' daily check-ins in one place.
           </p>
         </div>
 
         <button
           type="button"
+          className="attendance-button"
           onClick={loadAttendance}
           disabled={loading}
           style={{
@@ -228,65 +263,102 @@ export default function Attendancepage() {
             cursor: loading ? 'wait' : 'pointer',
           }}
         >
-          <span aria-hidden="true">{loading ? '◌' : '↻'}</span>
+          <span
+            aria-hidden="true"
+            className={loading ? 'attendance-spin' : ''}
+            style={{ fontSize: 17 }}
+          >
+            {loading ? '◌' : '↻'}
+          </span>
           {loading ? 'Refreshing…' : 'Refresh records'}
         </button>
       </header>
 
+      {/* Error message */}
       {error && (
         <div
           role="alert"
           style={{
-            padding: '13px 16px',
+            padding: '14px 16px',
             marginBottom: 22,
             borderRadius: 10,
-            border: '1px solid #4a393b',
-            background: '#534b4e',
-            color: '#ffb4bc',
-            fontSize: 14,
+            border: '1px solid #6b3030',
+            background: '#3B2022',
+            color: '#FFB4AB',
+            fontSize: 13,
+            lineHeight: 1.6,
           }}
         >
           {error}
         </div>
       )}
 
+      {/* QR code section */}
       <section
+        className="attendance-card attendance-card--qr"
         style={{
           ...styles.card,
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 270px), 1fr))',
           gap: 28,
           alignItems: 'center',
-          marginBottom: 28,
+          marginBottom: 26,
+          overflow: 'hidden',
         }}
       >
         <div>
+          <div
+            style={{
+              width: 42,
+              height: 42,
+              display: 'grid',
+              placeItems: 'center',
+              borderRadius: 12,
+              background: 'rgba(183,28,28,0.14)',
+              border: '1px solid rgba(183,28,28,0.4)',
+              color: '#ef9a9a',
+              fontSize: 21,
+              marginBottom: 18,
+            }}
+            aria-hidden="true"
+          >
+            ▦
+          </div>
+
           <p style={styles.eyebrow}>Quick check-in</p>
+
           <h2
             style={{
               margin: '0 0 10px',
-              color: '#f8fafc',
-              fontSize: 21,
-              letterSpacing: '-0.025em',
+              color: COLORS.white,
+              fontSize: 22,
+              letterSpacing: '-0.035em',
             }}
           >
             Your gym QR code
           </h2>
 
-          <p style={{ ...styles.muted, maxWidth: 400, margin: '0 0 18px' }}>
-            Members can scan this code to open the check-in page and enter
-            their registered details. Each member can check in once per day.
+          <p style={{ ...styles.muted, maxWidth: 390, margin: '0 0 20px' }}>
+            Let members scan this code to open your gym's check-in page.
+            They can verify their registered details and record attendance.
           </p>
 
-          {checkInUrl && (
-            <button
-              type="button"
-              onClick={() => window.print()}
-              style={styles.button}
-            >
-              Print QR code
-            </button>
-          )}
+          <button
+            type="button"
+            className="attendance-button"
+            onClick={() => window.print()}
+            disabled={!checkInUrl}
+            style={{
+              ...styles.button,
+              background: COLORS.red,
+              borderColor: COLORS.red,
+              opacity: checkInUrl ? 1 : 0.55,
+              cursor: checkInUrl ? 'pointer' : 'not-allowed',
+            }}
+          >
+            <span aria-hidden="true">↗</span>
+            Print QR code
+          </button>
         </div>
 
         <div
@@ -301,10 +373,10 @@ export default function Attendancepage() {
           {checkInUrl ? (
             <div
               style={{
-                background: '#ffffff',
-                padding: 16,
-                borderRadius: 14,
-                boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+                background: COLORS.white,
+                padding: 17,
+                borderRadius: 15,
+                boxShadow: '0 12px 35px rgba(0,0,0,0.25)',
               }}
             >
               <QRCodeSVG
@@ -315,36 +387,44 @@ export default function Attendancepage() {
               />
             </div>
           ) : (
-            <p style={styles.muted}>Loading gym QR code…</p>
+            <div style={{ textAlign: 'center', padding: 24 }}>
+              <p style={styles.muted}>Loading gym QR code…</p>
+            </div>
           )}
         </div>
       </section>
 
-      <section style={styles.card}>
+      {/* Attendance records */}
+      <section
+        className="attendance-card attendance-card--history"
+        style={styles.card}
+      >
         <div
           style={{
             display: 'flex',
             justifyContent: 'space-between',
-            alignItems: 'flex-end',
+            alignItems: 'flex-start',
             gap: 20,
             flexWrap: 'wrap',
-            marginBottom: 22,
+            marginBottom: 24,
           }}
         >
           <div>
+            <p style={styles.eyebrow}>Daily overview</p>
+
             <h2
               style={{
                 margin: 0,
-                fontSize: 21,
-                letterSpacing: '-0.025em',
-                color: '#f8fafc',
+                fontSize: 22,
+                letterSpacing: '-0.035em',
+                color: COLORS.white,
               }}
             >
               Attendance history
             </h2>
 
-            <p style={{ ...styles.muted, margin: '7px 0 0' }}>
-              Check-in times are displayed in Indian Standard Time (IST).
+            <p style={{ ...styles.muted, margin: '8px 0 0' }}>
+              Review member check-ins for a selected day.
             </p>
           </div>
 
@@ -353,8 +433,8 @@ export default function Attendancepage() {
               htmlFor="attendance-date"
               style={{
                 fontSize: 12,
-                fontWeight: 600,
-                color: '#b6c2d2',
+                fontWeight: 650,
+                color: COLORS.light,
               }}
             >
               Filter by date
@@ -371,53 +451,104 @@ export default function Attendancepage() {
           </div>
         </div>
 
+        {/* Summary strip */}
         <div
           style={{
             display: 'flex',
             flexWrap: 'wrap',
             alignItems: 'center',
-            gap: 8,
-            marginBottom: 16,
+            justifyContent: 'space-between',
+            gap: 12,
+            padding: '15px 16px',
+            marginBottom: 18,
+            background: COLORS.background,
+            border: `1px solid ${COLORS.border}`,
+            borderRadius: 11,
           }}
         >
-          <span
-            style={{
-              background: '#192a25',
-              border: '1px solid #285344',
-              color: '#8de0b8',
-              padding: '5px 10px',
-              borderRadius: 20,
-              fontSize: 12,
-              fontWeight: 600,
-            }}
-          >
-            {records.length} {records.length === 1 ? 'check-in' : 'check-ins'}
-          </span>
+          <div>
+            <p
+              style={{
+                margin: '0 0 5px',
+                color: COLORS.muted,
+                fontSize: 11,
+                fontWeight: 650,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+              }}
+            >
+              Selected date
+            </p>
 
-          <span style={{ color: '#8290a4', fontSize: 12 }}>
-            {formatAttendanceDate(date)}
-          </span>
+            <strong style={{ fontSize: 14, color: COLORS.light }}>
+              {formatAttendanceDate(date)}
+            </strong>
+          </div>
+
+          <div style={{ textAlign: 'right' }}>
+            <p
+              style={{
+                margin: '0 0 5px',
+                color: COLORS.muted,
+                fontSize: 11,
+                fontWeight: 650,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+              }}
+            >
+              Total check-ins
+            </p>
+
+            <span
+              style={{
+                color: COLORS.white,
+                fontSize: 22,
+                fontWeight: 750,
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              {records.length}
+            </span>
+          </div>
         </div>
 
         {loading ? (
-          <div style={{ padding: '42px 16px', textAlign: 'center' }}>
-            <p style={{ color: '#cbd5e1', margin: 0 }}>
+          <div
+            style={{
+              padding: '48px 16px',
+              textAlign: 'center',
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 11,
+            }}
+          >
+            <p style={{ color: COLORS.light, margin: 0 }}>
               Loading attendance records…
             </p>
           </div>
         ) : records.length === 0 ? (
           <div
             style={{
-              padding: '44px 18px',
+              padding: '48px 18px',
               textAlign: 'center',
-              border: '1px dashed #344258',
+              border: `1px dashed ${COLORS.border}`,
               borderRadius: 12,
-              background: '#0d131d',
+              background: COLORS.background,
             }}
           >
             <div
               aria-hidden="true"
-              style={{ fontSize: 28, marginBottom: 12, color: '#7f8da3' }}
+              style={{
+                width: 48,
+                height: 48,
+                display: 'grid',
+                placeItems: 'center',
+                margin: '0 auto 16px',
+                borderRadius: 14,
+                background: COLORS.surface,
+                border: `1px solid ${COLORS.border}`,
+                color: COLORS.light,
+                fontSize: 24,
+              }}
             >
               ◷
             </div>
@@ -426,48 +557,73 @@ export default function Attendancepage() {
               style={{
                 margin: '0 0 8px',
                 fontSize: 16,
-                color: '#e2e8f0',
+                color: COLORS.white,
               }}
             >
-              No check-ins found
+              No check-ins yet
             </h3>
 
-            <p style={{ ...styles.muted, margin: 0 }}>
-              There are no attendance records for {formatAttendanceDate(date)}.
+            <p
+              style={{
+                ...styles.muted,
+                margin: 0,
+                fontSize: 13,
+              }}
+            >
+              No attendance records were found for {formatAttendanceDate(date)}.
             </p>
           </div>
         ) : (
           <div
             style={{
               overflowX: 'auto',
-              border: '1px solid #263142',
-              borderRadius: 11,
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 12,
             }}
           >
             <table
               style={{
                 width: '100%',
+                minWidth: 650,
                 borderCollapse: 'collapse',
                 fontSize: 13,
+                background: COLORS.surface,
               }}
             >
               <thead>
-                <tr style={{ background: '#171f2c', color: '#aab7c9' }}>
-                  <th style={styles.tableCell}>Roll number</th>
-                  <th style={styles.tableCell}>Member</th>
-                  <th style={styles.tableCell}>Attendance date</th>
-                  <th style={styles.tableCell}>Check-in time (IST)</th>
-                  <th style={styles.tableCell}>Status</th>
+                <tr style={{ background: COLORS.background, color: COLORS.muted }}>
+                  {[
+                    'Roll number',
+                    'Member',
+                    'Attendance date',
+                    'Check-in time (IST)',
+                    'Status',
+                  ].map((heading) => (
+                    <th
+                      key={heading}
+                      style={{
+                        ...styles.tableCell,
+                        paddingTop: 14,
+                        paddingBottom: 14,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        letterSpacing: '0.045em',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      {heading}
+                    </th>
+                  ))}
                 </tr>
               </thead>
 
               <tbody>
                 {records.map((record) => (
-                  <tr key={record._id}>
+                  <tr className="attendance-row" key={record._id}>
                     <td
                       style={{
                         ...styles.tableCell,
-                        color: '#aebbd0',
+                        color: COLORS.light,
                         fontVariantNumeric: 'tabular-nums',
                       }}
                     >
@@ -478,8 +634,8 @@ export default function Attendancepage() {
                       <span
                         style={{
                           display: 'block',
-                          color: '#f1f5f9',
-                          fontWeight: 600,
+                          color: COLORS.white,
+                          fontWeight: 650,
                         }}
                       >
                         {record.memberName || 'Unknown member'}
@@ -489,8 +645,8 @@ export default function Attendancepage() {
                         <span
                           style={{
                             display: 'block',
-                            color: '#8190a5',
-                            marginTop: 4,
+                            color: COLORS.muted,
+                            marginTop: 5,
                             fontSize: 12,
                           }}
                         >
@@ -502,7 +658,7 @@ export default function Attendancepage() {
                     <td
                       style={{
                         ...styles.tableCell,
-                        color: '#b7c3d4',
+                        color: COLORS.light,
                       }}
                     >
                       {formatAttendanceDate(record.attendanceDate)}
@@ -511,7 +667,7 @@ export default function Attendancepage() {
                     <td
                       style={{
                         ...styles.tableCell,
-                        color: '#e2e8f0',
+                        color: COLORS.light,
                         fontVariantNumeric: 'tabular-nums',
                       }}
                     >
@@ -521,16 +677,25 @@ export default function Attendancepage() {
                     <td style={styles.tableCell}>
                       <span
                         style={{
-                          display: 'inline-block',
-                          border: '1px solid #285344',
-                          background: '#192a25',
-                          color: '#8de0b8',
-                          padding: '5px 9px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 7,
+                          padding: '6px 10px',
                           borderRadius: 20,
+                          background: COLORS.success,
+                          color: COLORS.successText,
                           fontSize: 11,
                           fontWeight: 700,
                         }}
                       >
+                        <span
+                          style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: '50%',
+                            background: COLORS.successText,
+                          }}
+                        />
                         Present
                       </span>
                     </td>
@@ -540,44 +705,167 @@ export default function Attendancepage() {
             </table>
           </div>
         )}
+
+        <p
+          style={{
+            color: COLORS.muted,
+            fontSize: 11,
+            margin: '16px 0 0',
+            lineHeight: 1.6,
+          }}
+        >
+          All check-in times are displayed in Indian Standard Time (IST).
+        </p>
       </section>
 
       <footer
         style={{
-          marginTop: 18,
-          textAlign: 'right',
-          color: '#748197',
+          marginTop: 22,
+          display: 'flex',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 10,
+          color: COLORS.muted,
           fontSize: 11,
         }}
       >
-        All attendance times are shown in IST (UTC+05:30).
+        <span>GFT · Gym Fee Tracker</span>
+        <span>Built for your daily gym operations</span>
       </footer>
 
       <style>{`
-        @media print {
-          body {
-            background: white !important;
+        /* Page entrance */
+        .attendance-page {
+          animation: gftFadeIn 450ms ease-out both;
+        }
+
+        .attendance-header {
+          animation: gftSlideUp 450ms ease-out 60ms both;
+        }
+
+        /* Subtle card entrance */
+        .attendance-card--qr {
+          animation: gftSlideUp 500ms ease-out 120ms both;
+        }
+
+        .attendance-card--history {
+          animation: gftSlideUp 500ms ease-out 190ms both;
+        }
+
+        /* Button hover and press feedback */
+        .attendance-button {
+          transition:
+            transform 180ms ease,
+            box-shadow 180ms ease,
+            opacity 160ms ease;
+        }
+
+        .attendance-button:hover:not(:disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+        }
+
+        .attendance-button:active:not(:disabled) {
+          transform: translateY(0) scale(0.98);
+        }
+
+        .attendance-button:focus-visible {
+          outline: 2px solid #E5E5E7;
+          outline-offset: 3px;
+        }
+
+        /* Attendance row hover */
+        .attendance-row {
+          transition: background-color 180ms ease;
+        }
+
+        .attendance-row:hover {
+          background-color: rgba(255, 255, 255, 0.045);
+        }
+
+        /* Refresh loading indicator */
+        .attendance-spin {
+          display: inline-block;
+          animation: gftSpin 1s linear infinite;
+        }
+
+        @keyframes gftFadeIn {
+          from {
+            opacity: 0;
           }
 
-          .attendance-qr {
-            break-inside: avoid;
-          }
-
-          button,
-          input,
-          footer {
-            display: none !important;
-          }
-
-          main {
-            color: black !important;
+          to {
+            opacity: 1;
           }
         }
 
+        @keyframes gftSlideUp {
+          from {
+            opacity: 0;
+            transform: translateY(12px);
+          }
+
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes gftSpin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+
+        /* Print only the QR code */
+        @media print {
+          body {
+            background: #ffffff !important;
+          }
+
+          body * {
+            visibility: hidden;
+          }
+
+          .attendance-qr,
+          .attendance-qr * {
+            visibility: visible;
+          }
+
+          .attendance-qr {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+          }
+        }
+
+        /* Mobile QR code sizing */
         @media (max-width: 600px) {
           .attendance-qr svg {
             max-width: 100%;
             height: auto;
+          }
+        }
+
+        /* Accessibility: reduce motion when requested */
+        @media (prefers-reduced-motion: reduce) {
+          .attendance-page,
+          .attendance-header,
+          .attendance-card--qr,
+          .attendance-card--history,
+          .attendance-spin {
+            animation: none !important;
+          }
+
+          .attendance-button,
+          .attendance-row {
+            transition: none !important;
+          }
+
+          .attendance-button:hover:not(:disabled),
+          .attendance-button:active:not(:disabled) {
+            transform: none;
           }
         }
       `}</style>

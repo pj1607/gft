@@ -10,7 +10,7 @@ const COLORS = {
   white: '#FFFFFF',
   light: '#E5E5E7',
   red: '#B71C1C',
-  slate: '#37474F',
+  slate: '#1a1a1a',
   muted: '#A1A1AA',
   border: '#353538',
   success: '#183324',
