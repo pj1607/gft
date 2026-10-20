@@ -35,7 +35,7 @@ const googleClientSecret = process.env.NODE_ENV === 'production'
   : process.env.GOOGLE_CLIENT_SECRET_LOCAL;
 
   const googleCallbackURL = process.env.NODE_ENV === 'production'
-  ? 'https://gym-fee-tracker-vite-31pd.onrender.com/auth/google/callback'
+  ? 'https://gft-1.onrender.com/auth/google/callback'
   : 'http://localhost:4000/auth/google/callback';
 
 
@@ -102,7 +102,7 @@ router.get('/google/callback',
       { expiresIn: '7d' }
     );
  const frontend = process.env.NODE_ENV === 'production' 
-      ? 'https://gym-fee-tracker.vercel.app'
+      ? 'https://gft-zeta.vercel.app'
       : 'http://localhost:5173';
 
 res.redirect(`${frontend}/oauth-success?token=${token}`);
