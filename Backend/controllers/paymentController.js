@@ -53,38 +53,86 @@ const validatePaymentInputs = ({ amount, feePlans = [], fallbackMonthlyFee = 0 }
   return { amountPaise, monthlyFeePaise, monthsCovered };
 };
 
+const getStoredPaidThrough = (member) => {
+  if (member.paidThroughDate) {
+    const storedDate = dayjs(member.paidThroughDate);
+    if (storedDate.isValid()) return storedDate;
+  }
+
+  // Backward compatibility: infer coverage for records created before paidThroughDate existed.
+  const latestPayment = [...(member.paymentHistory || [])]
+    .filter((payment) => payment.status === 'Paid' && payment.paidAt)
+    .sort((a, b) => new Date(b.paidAt) - new Date(a.paidAt))[0];
+
+  if (latestPayment) {
+    const paidAt = dayjs(latestPayment.paidAt);
+    if (paidAt.isValid()) {
+      return paidAt.add(Math.max(Number(latestPayment.monthsCovered) || 1, 1), 'month');
+    }
+  }
+
+  // Older versions used lastPaidDate as an approximate coverage date.
+  const legacyDate = dayjs(member.lastPaidDate);
+  return legacyDate.isValid() ? legacyDate.add(1, 'month') : null;
+};
+
 const getMonthsOverdue = (member, now = dayjs()) => {
   const storedUnpaid = Number(member.unpaidFor) || 0;
   if (storedUnpaid > 0) return storedUnpaid;
-  if (member.status === 'Unpaid' && member.lastPaidDate) {
-    const lastPaid = dayjs(member.lastPaidDate);
-    if (lastPaid.isValid() && lastPaid.isBefore(now, 'month')) {
-      return Math.max((now.year() - lastPaid.year()) * 12 + now.month() - lastPaid.month(), 1);
+
+  if (member.status === 'Unpaid') {
+    const paidThrough = getStoredPaidThrough(member);
+    if (paidThrough && paidThrough.isValid()) {
+      return Math.max(now.diff(paidThrough, 'month'), 1);
+    }
+
+    if (member.lastPaidDate) {
+      const lastPaid = dayjs(member.lastPaidDate);
+      if (lastPaid.isValid() && lastPaid.isBefore(now, 'month')) {
+        return Math.max((now.year() - lastPaid.year()) * 12 + now.month() - lastPaid.month(), 1);
+      }
     }
     return 1;
   }
+
   return 0;
 };
 
 const applySuccessfulPayment = async ({ member, amountPaise, monthlyFeePaise, monthsCovered, method, reference = null }) => {
-  member.previousUnpaidMonths = getMonthsOverdue(member);
-  member.previousLastPaidDate = member.lastPaidDate;
   const now = dayjs();
+  const previousPaidThrough = getStoredPaidThrough(member);
   const overdueMonths = getMonthsOverdue(member, now);
-  const lastPaid = dayjs(member.lastPaidDate);
-  const oldDateIsOverdue = lastPaid.isValid() && lastPaid.isBefore(now, 'month');
-  const baseDate = overdueMonths > 0 && oldDateIsOverdue ? lastPaid : now;
-  const paidThrough = overdueMonths > 0
-    ? baseDate.add(monthsCovered, 'month')
-    : now.add(Math.max(monthsCovered - 1, 0), 'month');
   const remainingUnpaid = Math.max(overdueMonths - monthsCovered, 0);
 
+  member.previousUnpaidMonths = overdueMonths;
+  member.previousLastPaidDate = member.lastPaidDate;
+  member.previousPaidThroughDate = previousPaidThrough?.isValid()
+    ? previousPaidThrough.toDate()
+    : null;
+
+  let paidThrough;
+  if (remainingUnpaid > 0) {
+    // Payments that do not clear all arrears are applied to overdue fees first.
+    paidThrough = previousPaidThrough?.isValid() ? previousPaidThrough : now;
+  } else if (overdueMonths > 0) {
+    // Once arrears are cleared, keep at least one full month before the next due date.
+    const extraMonths = Math.max(monthsCovered - overdueMonths, 1);
+    paidThrough = now.add(extraMonths, 'month');
+  } else {
+    // Advance payments extend the existing coverage period instead of resetting it.
+    const baseDate = previousPaidThrough?.isValid() && previousPaidThrough.isAfter(now)
+      ? previousPaidThrough
+      : now;
+    paidThrough = baseDate.add(monthsCovered, 'month');
+  }
+
   member.monthlyFee = monthlyFeePaise / 100;
-  member.lastPaidDate = paidThrough.toDate();
+  member.lastPaidDate = now.toDate();
+  member.paidThroughDate = paidThrough.toDate();
   member.unpaidFor = remainingUnpaid;
   member.status = remainingUnpaid === 0 ? 'Paid' : 'Unpaid';
   member.paymentHistory.push({
-    paidAt: new Date(),
+    paidAt: now.toDate(),
     amount: amountPaise / 100,
     method,
     monthsCovered,
