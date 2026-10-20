@@ -107,7 +107,7 @@ const handleClosePaymentCollection = () => setPaymentModalOpen(false);
 const handlePaymentSuccess = async (updatedMember) => {
   // Refresh first, then apply the authoritative member returned by the payment API.
   // This ordering prevents a stale list response from overwriting the saved Paid status.
-  await fetchMembers();
+  await fetchMembers({ silent: true });
 
   if (!updatedMember?._id) return;
 
@@ -152,9 +152,9 @@ const CustomNoRowsOverlay = () => (
 
 
 
- const fetchMembers = async () => {
+ const fetchMembers = async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const token = localStorage.getItem("token");
       const res = await axios.get(`${API}/members/all-members`, {
        headers: {
@@ -182,7 +182,7 @@ const CustomNoRowsOverlay = () => (
 });
     }
     finally {
-    setLoading(false);
+    if (!silent) setLoading(false);
   }
   };
 
