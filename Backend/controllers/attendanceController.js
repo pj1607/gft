@@ -3,6 +3,79 @@ import Member from '../models/memberModel.js';
 import User from '../models/userModel.js';
 import Attendance from '../models/attendanceModel.js';
 
+const INDIA_TIME_ZONE = 'Asia/Kolkata';
+const ATTENDANCE_RETENTION_MONTHS = 3;
+
+// Returns the current calendar date in India as YYYY-MM-DD.
+const getIndiaDateKey = (date = new Date()) => {
+  const dateParts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: INDIA_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+
+  const parts = Object.fromEntries(
+    dateParts.map(({ type, value }) => [type, value])
+  );
+
+  return `${parts.year}-${parts.month}-${parts.day}`;
+};
+
+// Adds calendar months to a YYYY-MM-DD date, clamping month-end dates.
+// Example: 2026-01-31 + 3 months becomes 2026-04-30.
+const addMonthsToDateKey = (dateKey, months) => {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const targetMonth = new Date(Date.UTC(year, month - 1 + months, 1));
+  const lastDayOfTargetMonth = new Date(
+    Date.UTC(
+      targetMonth.getUTCFullYear(),
+      targetMonth.getUTCMonth() + 1,
+      0
+    )
+  ).getUTCDate();
+  const targetDay = Math.min(day, lastDayOfTargetMonth);
+
+  return [
+    targetMonth.getUTCFullYear(),
+    String(targetMonth.getUTCMonth() + 1).padStart(2, '0'),
+    String(targetDay).padStart(2, '0'),
+  ].join('-');
+};
+
+const addDaysToDateKey = (dateKey, days) => {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const result = new Date(Date.UTC(year, month - 1, day + days));
+
+  return [
+    result.getUTCFullYear(),
+    String(result.getUTCMonth() + 1).padStart(2, '0'),
+    String(result.getUTCDate()).padStart(2, '0'),
+  ].join('-');
+};
+
+// Retain attendance through its three-calendar-month anniversary.
+// Expiry is midnight IST on the following calendar day.
+const getAttendanceExpiry = (attendanceDate) => {
+  const anniversary = addMonthsToDateKey(
+    attendanceDate,
+    ATTENDANCE_RETENTION_MONTHS
+  );
+  const expiryDateKey = addDaysToDateKey(anniversary, 1);
+
+  return new Date(`${expiryDateKey}T00:00:00+05:30`);
+};
+
+const getAttendanceWindow = () => {
+  const today = getIndiaDateKey();
+  const cutoff = addMonthsToDateKey(
+    today,
+    -ATTENDANCE_RETENTION_MONTHS
+  );
+
+  return { today, cutoff };
+};
+
 export const getGymInfo = async (req, res) => {
   return res.json({ ownerId: req.user._id });
 };
@@ -53,21 +126,9 @@ export const checkInMember = async (req, res) => {
       });
     }
 
-   const now = new Date();
-
-const dateParts = new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'Asia/Kolkata',
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-}).formatToParts(now);
-
-const parts = Object.fromEntries(
-  dateParts.map(({ type, value }) => [type, value])
-);
-
-const attendanceDate =
-  `${parts.year}-${parts.month}-${parts.day}`;
+    const now = new Date();
+    const attendanceDate = getIndiaDateKey(now);
+    const expiresAt = getAttendanceExpiry(attendanceDate);
 
     try {
       const attendance = await Attendance.create({
@@ -75,6 +136,7 @@ const attendanceDate =
         memberId: member._id,
         attendanceDate,
         checkInAt: now,
+        expiresAt,
       });
 
       return res.status(201).json({
@@ -111,7 +173,6 @@ const attendanceDate =
   }
 };
 
-
 export const getMemberAttendanceHistory = async (req, res) => {
   try {
     const { memberId } = req.params;
@@ -129,9 +190,12 @@ export const getMemberAttendanceHistory = async (req, res) => {
       return res.status(404).json({ message: 'Member not found.' });
     }
 
+    const { today, cutoff } = getAttendanceWindow();
+
     const records = await Attendance.find({
       ownerId: req.user._id,
       memberId: member._id,
+      attendanceDate: { $gte: cutoff, $lte: today },
     })
       .sort({ attendanceDate: -1, checkInAt: -1 })
       .select('attendanceDate checkInAt')
@@ -163,7 +227,19 @@ export const getAttendance = async (req, res) => {
       return res.status(400).json({ message: 'Invalid date format.' });
     }
 
-    const filter = { ownerId: req.user._id };
+    const { today, cutoff } = getAttendanceWindow();
+
+    // Do not expose attendance outside the three-month window, even while
+    // MongoDB's background TTL monitor is waiting to physically delete it.
+    if (date && (date < cutoff || date > today)) {
+      return res.json({ attendance: [] });
+    }
+
+    const filter = {
+      ownerId: req.user._id,
+      attendanceDate: { $gte: cutoff, $lte: today },
+    };
+
     if (date) filter.attendanceDate = date;
 
     const records = await Attendance.find(filter)
