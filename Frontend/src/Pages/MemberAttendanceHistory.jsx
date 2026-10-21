@@ -31,7 +31,6 @@ const COLORS = {
   white: '#FFFFFF',
   light: '#E5E5E7',
   muted: '#A1A1AA',
-  border: '#353538',
   surface: '#1a1a1a',
   accent: '#858080',
   red: '#B71C1C',
@@ -108,7 +107,6 @@ const cardStyle = {
   p: { xs: 2.5, sm: 3 },
   backgroundColor: COLORS.surface,
   color: COLORS.white,
-  border: `1px solid ${COLORS.border}`,
   borderRadius: 3,
   boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
 };
@@ -467,6 +465,7 @@ export default function MemberAttendanceHistory() {
                   title="Roll Number"
                   value={member.rollNumber || '—'}
                   icon={<BadgeIcon />}
+                  accent
                 />
               </Grid>
 
@@ -475,6 +474,7 @@ export default function MemberAttendanceHistory() {
                   title="Phone Number"
                   value={member.phone || '—'}
                   icon={<PhoneIcon />}
+                  accent
                 />
               </Grid>
 
