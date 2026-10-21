@@ -587,17 +587,6 @@ export default function CheckInpage() {
             </>
           )}
         </section>
-
-        <footer
-          style={{
-            textAlign: 'center',
-            color: COLORS.muted,
-            fontSize: 11,
-            marginTop: 22,
-          }}
-        >
-          GFT · Gym Fee Tracker
-        </footer>
       </div>
     </main>
   );

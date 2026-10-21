@@ -1,22 +1,59 @@
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { QRCodeSVG } from 'qrcode.react';
+
+import {
+  Box,
+  Typography,
+  Grid,
+  Paper,
+  Button,
+  CircularProgress,
+  TextField,
+  Chip,
+  Tooltip,
+  IconButton,
+  Divider,
+} from '@mui/material';
+
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import PrintIcon from '@mui/icons-material/Print';
+import QrCode2Icon from '@mui/icons-material/QrCode2';
+import GroupsIcon from '@mui/icons-material/Groups';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import EventAvailableIcon from '@mui/icons-material/EventAvailable';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Legend,
+  Tooltip as RechartsTooltip,
+} from 'recharts';
+
+import { Link } from 'react-router-dom';
 
 const API_URL = import.meta.env.VITE_API_URL;
 const TIME_ZONE = 'Asia/Kolkata';
 
 const COLORS = {
-  background: '#1C1C1E',
+  background: '#121212',
+  card: '#1a1a1a',
   white: '#FFFFFF',
   light: '#E5E5E7',
-  red: '#B71C1C',
-  slate: '#475156',
   muted: '#A1A1AA',
   border: '#353538',
-  surface: '#1a1a1a',
-  success: '#183324',
-  successText: '#A5D6A7',
+  accent: '#8B8585',
+  green: '#4caf50',
+  greenSoft: 'rgba(76, 175, 80, 0.13)',
+  red: '#f44336',
+  redSoft: 'rgba(244, 67, 54, 0.13)',
+  chart: ['#8E8888', '#B7B1B1', '#666060', '#D5D0D0'],
 };
 
 function getIndiaDate() {
@@ -38,6 +75,7 @@ function formatCheckInTime(value) {
   if (!value) return '—';
 
   const date = new Date(value);
+
   if (Number.isNaN(date.getTime())) return '—';
 
   return date.toLocaleTimeString('en-IN', {
@@ -56,6 +94,7 @@ function formatAttendanceDate(value) {
   if (!match) return value;
 
   const [, year, month, day] = match;
+
   const calendarDate = new Date(
     Number(year),
     Number(month) - 1,
@@ -64,7 +103,6 @@ function formatAttendanceDate(value) {
   );
 
   return calendarDate.toLocaleDateString('en-IN', {
-    timeZone: TIME_ZONE,
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -73,96 +111,167 @@ function formatAttendanceDate(value) {
 
 function getAuthConfig() {
   const token = localStorage.getItem('token');
-  return { headers: { Authorization: `Bearer ${token}` } };
+
+  return {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  };
 }
 
-const styles = {
-  page: {
-    maxWidth: 1160,
-    margin: '0 auto',
-    padding: '32px 20px 48px',
-    color: COLORS.white,
-    fontFamily:
-      'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-  },
+function getIndiaHour(value) {
+  if (!value) return null;
 
-  eyebrow: {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return null;
+
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: TIME_ZONE,
+    hour: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+
+  const hourPart = parts.find((part) => part.type === 'hour');
+
+  if (!hourPart) return null;
+
+  return Number(hourPart.value) % 24;
+}
+
+function getTimePeriod(hour) {
+  if (hour === null) return null;
+  if (hour >= 5 && hour < 12) return 'Morning';
+  if (hour >= 12 && hour < 17) return 'Afternoon';
+  if (hour >= 17 && hour < 22) return 'Evening';
+
+  return 'Night';
+}
+
+const cardStyle = {
+  height: '100%',
+  p: { xs: 2.5, sm: 3 },
+  backgroundColor: COLORS.card,
+  color: COLORS.white,
+  border: `1px solid ${COLORS.border}`,
+  borderRadius: 3,
+  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
+  transition: 'border-color 180ms ease, transform 180ms ease',
+};
+
+const headingStyle = {
+  color: COLORS.white,
+  fontWeight: 700,
+  letterSpacing: '-0.3px',
+};
+
+const mutedStyle = {
+  color: COLORS.muted,
+  fontSize: '0.875rem',
+  lineHeight: 1.7,
+};
+
+const inputStyle = {
+  minWidth: { xs: '100%', sm: 190 },
+  '& .MuiInputLabel-root': {
     color: COLORS.muted,
-    fontSize: 11,
-    fontWeight: 700,
-    letterSpacing: '0.16em',
-    textTransform: 'uppercase',
-    margin: '0 0 10px',
   },
-
-  title: {
-    fontSize: 'clamp(28px, 4vw, 36px)',
-    lineHeight: 1.15,
-    letterSpacing: '-0.045em',
-    margin: 0,
+  '& .MuiInputLabel-root.Mui-focused': {
+    color: COLORS.light,
+  },
+  '& .MuiOutlinedInput-root': {
     color: COLORS.white,
-    fontWeight: 750,
+    backgroundColor: COLORS.background,
+    borderRadius: 2,
+    '& fieldset': {
+      borderColor: COLORS.border,
+    },
+    '&:hover fieldset': {
+      borderColor: '#777777',
+    },
+    '&.Mui-focused fieldset': {
+      borderColor: '#858080',
+    },
   },
-
-  muted: {
-    color: COLORS.muted,
-    fontSize: 14,
-    lineHeight: 1.7,
-  },
-
-  card: {
-    background: COLORS.surface,
-    border: `1px solid ${COLORS.border}`,
-    borderRadius: 16,
-    padding: 'clamp(19px, 3vw, 26px)',
-  },
-
-  button: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 9,
-    border: `1px solid ${COLORS.border}`,
-    borderRadius: 10,
-    padding: '11px 15px',
-    background: COLORS.slate,
-    color: COLORS.white,
-    fontSize: 13,
-    fontWeight: 650,
-    cursor: 'pointer',
-    transition:
-      'transform 180ms ease, box-shadow 180ms ease, opacity 160ms ease',
-  },
-
-  input: {
-    display: 'block',
-    width: '100%',
-    boxSizing: 'border-box',
-    marginTop: 8,
-    padding: '12px 13px',
-    border: `1px solid ${COLORS.border}`,
-    borderRadius: 9,
-    background: COLORS.background,
-    color: COLORS.white,
-    fontSize: 14,
+  '& input': {
     colorScheme: 'dark',
-    outline: 'none',
-  },
-
-  tableCell: {
-    textAlign: 'left',
-    padding: '16px 18px',
-    borderBottom: `1px solid ${COLORS.border}`,
-    whiteSpace: 'nowrap',
   },
 };
+
+function StatCard({ title, value, subtitle, icon, loading }) {
+  return (
+    <Paper elevation={3} sx={cardStyle}>
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          gap: 2,
+        }}
+      >
+        <Box sx={{ minWidth: 0 }}>
+          <Typography
+            variant="body2"
+            sx={{ color: COLORS.muted, fontWeight: 600, mb: 1.5 }}
+          >
+            {title}
+          </Typography>
+
+          {loading ? (
+            <CircularProgress
+              size={28}
+              sx={{ color: COLORS.light, my: 0.5 }}
+            />
+          ) : (
+            <Typography
+              variant="h3"
+              sx={{
+                color: COLORS.light,
+                fontWeight: 750,
+                fontSize: { xs: '2rem', sm: '2.35rem' },
+                lineHeight: 1.2,
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              {value}
+            </Typography>
+          )}
+
+          <Typography
+            variant="caption"
+            sx={{ display: 'block', color: COLORS.muted, mt: 1.5 }}
+          >
+            {subtitle}
+          </Typography>
+        </Box>
+
+        <Box
+          sx={{
+            width: 44,
+            height: 44,
+            flexShrink: 0,
+            borderRadius: 2,
+            display: 'grid',
+            placeItems: 'center',
+            backgroundColor: 'rgba(255,255,255,0.055)',
+            color: COLORS.light,
+          }}
+        >
+          {icon}
+        </Box>
+      </Box>
+    </Paper>
+  );
+}
 
 export default function Attendancepage() {
   const [ownerId, setOwnerId] = useState('');
   const [date, setDate] = useState(getIndiaDate);
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [gymLoading, setGymLoading] = useState(true);
   const [error, setError] = useState('');
+  const [qrError, setQrError] = useState('');
 
   const checkInUrl = ownerId
     ? `${window.location.origin}/check-in/${ownerId}`
@@ -178,10 +287,15 @@ export default function Attendancepage() {
         getAuthConfig()
       );
 
-      setRecords(response.data.attendance ?? []);
+      setRecords(
+        Array.isArray(response.data.attendance)
+          ? response.data.attendance
+          : []
+      );
     } catch (err) {
       setError(
-        err.response?.data?.message ?? 'Could not load attendance.'
+        err.response?.data?.message ||
+          'Could not load attendance records. Please try again.'
       );
     } finally {
       setLoading(false);
@@ -191,7 +305,10 @@ export default function Attendancepage() {
   useEffect(() => {
     let cancelled = false;
 
-    async function loadGym() {
+    async function loadGymInfo() {
+      setGymLoading(true);
+      setQrError('');
+
       try {
         const response = await axios.get(
           `${API_URL}/attendance/gym-info`,
@@ -199,18 +316,23 @@ export default function Attendancepage() {
         );
 
         if (!cancelled) {
-          setOwnerId(response.data.ownerId);
+          setOwnerId(response.data.ownerId || '');
         }
       } catch (err) {
         if (!cancelled) {
-          setError(
-            err.response?.data?.message ?? 'Could not load gym QR code.'
+          setQrError(
+            err.response?.data?.message ||
+              'Could not load your gym QR code.'
           );
+        }
+      } finally {
+        if (!cancelled) {
+          setGymLoading(false);
         }
       }
     }
 
-    loadGym();
+    loadGymInfo();
 
     return () => {
       cancelled = true;
@@ -221,654 +343,783 @@ export default function Attendancepage() {
     loadAttendance();
   }, [loadAttendance]);
 
+  // Build the chart from real check-in times returned by the API.
+  const timeDistribution = useMemo(() => {
+    const periods = [
+      { name: 'Morning', value: 0 },
+      { name: 'Afternoon', value: 0 },
+      { name: 'Evening', value: 0 },
+      { name: 'Night', value: 0 },
+    ];
+
+    records.forEach((record) => {
+      const hour = getIndiaHour(record.checkInAt);
+      const period = getTimePeriod(hour);
+
+      if (period) {
+        const item = periods.find((entry) => entry.name === period);
+
+        if (item) item.value += 1;
+      }
+    });
+
+    return periods;
+  }, [records]);
+
+  const chartHasData = timeDistribution.some((item) => item.value > 0);
+
+  const firstCheckIn = useMemo(() => {
+    const times = records
+      .map((record) => new Date(record.checkInAt).getTime())
+      .filter((time) => Number.isFinite(time));
+
+    if (times.length === 0) return '—';
+
+    return formatCheckInTime(Math.min(...times));
+  }, [records]);
+
+  const latestCheckIn = useMemo(() => {
+    const times = records
+      .map((record) => new Date(record.checkInAt).getTime())
+      .filter((time) => Number.isFinite(time));
+
+    if (times.length === 0) return '—';
+
+    return formatCheckInTime(Math.max(...times));
+  }, [records]);
+
+  const handlePrint = () => {
+    if (checkInUrl) {
+      window.print();
+    }
+  };
+
   return (
-    <main
+    <Box
       className="attendance-page"
-      style={{
-        ...styles.page,
+      component="main"
+      sx={{
+        p: { xs: 2, sm: 3, md: 4 },
+        maxWidth: 1440,
+        mx: 'auto',
         minHeight: '100vh',
         boxSizing: 'border-box',
+        color: COLORS.white,
+        animation: 'attendanceFadeIn 350ms ease-out',
+        '@keyframes attendanceFadeIn': {
+          from: { opacity: 0, transform: 'translateY(5px)' },
+          to: { opacity: 1, transform: 'translateY(0)' },
+        },
       }}
     >
       {/* Page heading */}
-      <header
-        className="attendance-header"
-        style={{
+      <Box
+        sx={{
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: 20,
-          marginBottom: 30,
+          alignItems: { xs: 'flex-start', sm: 'center' },
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: 2,
+          mb: 3,
         }}
       >
-        <div>
-          <p style={styles.eyebrow}>Gym management</p>
-
-          <h1 style={styles.title}>Attendance</h1>
-
-          <p style={{ ...styles.muted, margin: '10px 0 0', maxWidth: 460 }}>
-            Every visit counts. Track your members' daily check-ins in one place.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          className="attendance-button"
-          onClick={loadAttendance}
-          disabled={loading}
-          style={{
-            ...styles.button,
-            opacity: loading ? 0.65 : 1,
-            cursor: loading ? 'wait' : 'pointer',
-          }}
-        >
-          <span
-            aria-hidden="true"
-            className={loading ? 'attendance-spin' : ''}
-            style={{ fontSize: 17 }}
+        <Box>
+          <Typography
+            variant="h4"
+            sx={{
+              ...headingStyle,
+              fontSize: { xs: '1.8rem', sm: '2.125rem' },
+              mb: 1,
+            }}
           >
-            {loading ? '◌' : '↻'}
-          </span>
-          {loading ? 'Refreshing…' : 'Refresh records'}
-        </button>
-      </header>
+            Attendance
+          </Typography>
 
-      {/* Error message */}
+          <Typography sx={mutedStyle}>
+            Monitor daily member check-ins and manage your gym's QR check-in.
+          </Typography>
+        </Box>
+
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          <Tooltip title="Go to Dashboard">
+            <IconButton
+              component={Link}
+              to="/dashboard"
+              aria-label="Go to dashboard"
+              sx={{
+                color: COLORS.light,
+                backgroundColor: COLORS.card,
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: 2,
+                '&:hover': { backgroundColor: '#292929' },
+              }}
+            >
+              <DashboardIcon />
+            </IconButton>
+          </Tooltip>
+
+          <Button
+            variant="contained"
+            startIcon={
+              loading ? (
+                <CircularProgress size={16} color="inherit" />
+              ) : (
+                <RefreshIcon />
+              )
+            }
+            onClick={loadAttendance}
+            disabled={loading}
+            sx={{
+              backgroundColor: '#353535',
+              color: COLORS.white,
+              textTransform: 'none',
+              fontWeight: 600,
+              borderRadius: 2,
+              px: 2,
+              boxShadow: 'none',
+              '&:hover': {
+                backgroundColor: '#454545',
+                boxShadow: 'none',
+              },
+            }}
+          >
+            {loading ? 'Refreshing...' : 'Refresh'}
+          </Button>
+        </Box>
+      </Box>
+
+      {/* Error state */}
       {error && (
-        <div
+        <Paper
           role="alert"
-          style={{
-            padding: '14px 16px',
-            marginBottom: 22,
-            borderRadius: 10,
-            border: '1px solid #6b3030',
-            background: '#3B2022',
+          sx={{
+            p: 2,
+            mb: 3,
             color: '#FFB4AB',
-            fontSize: 13,
-            lineHeight: 1.6,
+            backgroundColor: '#351F20',
+            border: '1px solid #693737',
+            borderRadius: 2,
           }}
         >
-          {error}
-        </div>
+          <Typography variant="body2">{error}</Typography>
+          <Button
+            size="small"
+            onClick={loadAttendance}
+            sx={{ mt: 1, color: '#FFB4AB', textTransform: 'none' }}
+          >
+            Try again
+          </Button>
+        </Paper>
       )}
 
-      {/* QR code section */}
-      <section
-        className="attendance-card attendance-card--qr"
-        style={{
-          ...styles.card,
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 270px), 1fr))',
-          gap: 28,
-          alignItems: 'center',
-          marginBottom: 26,
-          overflow: 'hidden',
-        }}
-      >
-        <div>
-          <div
-            style={{
-              width: 42,
-              height: 42,
-              display: 'grid',
-              placeItems: 'center',
-              borderRadius: 12,
-              background: 'rgba(183,28,28,0.14)',
-              border: '1px solid rgba(183,28,28,0.4)',
-              color: '#ef9a9a',
-              fontSize: 21,
-              marginBottom: 18,
-            }}
-            aria-hidden="true"
-          >
-            ▦
-          </div>
+      {/* Daily overview cards */}
+      <Grid container spacing={2.5} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={6} md={4}>
+          <StatCard
+            title="Total Check-ins"
+            value={records.length}
+            subtitle={formatAttendanceDate(date)}
+            icon={<GroupsIcon />}
+            loading={loading}
+          />
+        </Grid>
 
-          <p style={styles.eyebrow}>Quick check-in</p>
+        <Grid item xs={12} sm={6} md={4}>
+          <StatCard
+            title="First Check-in"
+            value={firstCheckIn}
+            subtitle="Earliest recorded check-in · IST"
+            icon={<AccessTimeIcon />}
+            loading={loading}
+          />
+        </Grid>
 
-          <h2
-            style={{
-              margin: '0 0 10px',
-              color: COLORS.white,
-              fontSize: 22,
-              letterSpacing: '-0.035em',
-            }}
-          >
-            Your gym QR code
-          </h2>
+        <Grid item xs={12} sm={6} md={4}>
+          <StatCard
+            title="Latest Check-in"
+            value={latestCheckIn}
+            subtitle="Most recent recorded check-in · IST"
+            icon={<TrendingUpIcon />}
+            loading={loading}
+          />
+        </Grid>
+      </Grid>
 
-          <p style={{ ...styles.muted, maxWidth: 390, margin: '0 0 20px' }}>
-            Let members scan this code to open your gym's check-in page.
-            They can verify their registered details and record attendance.
-          </p>
-
-          <button
-            type="button"
-            className="attendance-button"
-            onClick={() => window.print()}
-            disabled={!checkInUrl}
-            style={{
-              ...styles.button,
-              background: COLORS.red,
-              borderColor: COLORS.red,
-              opacity: checkInUrl ? 1 : 0.55,
-              cursor: checkInUrl ? 'pointer' : 'not-allowed',
+      {/* QR code and check-in distribution */}
+      <Grid container spacing={2.5} sx={{ mb: 3 }}>
+        {/* QR code */}
+        <Grid item xs={12} md={5}>
+          <Paper
+            elevation={3}
+            className="attendance-print-card"
+            sx={{
+              ...cardStyle,
+              display: 'flex',
+              flexDirection: 'column',
             }}
           >
-            <span aria-hidden="true">↗</span>
-            Print QR code
-          </button>
-        </div>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+              <Box
+                sx={{
+                  display: 'grid',
+                  placeItems: 'center',
+                  width: 42,
+                  height: 42,
+                  borderRadius: 2,
+                  backgroundColor: 'rgba(255,255,255,0.06)',
+                  color: COLORS.light,
+                }}
+              >
+                <QrCode2Icon />
+              </Box>
 
-        <div
-          className="attendance-qr"
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            minHeight: 220,
-          }}
-        >
-          {checkInUrl ? (
-            <div
-              style={{
-                background: COLORS.white,
-                padding: 17,
-                borderRadius: 15,
-                boxShadow: '0 12px 35px rgba(0,0,0,0.25)',
+              <Box>
+                <Typography variant="h6" sx={headingStyle}>
+                  Gym Check-in QR
+                </Typography>
+                <Typography variant="caption" sx={{ color: COLORS.muted }}>
+                  Scan to open the check-in page
+                </Typography>
+              </Box>
+            </Box>
+
+            <Divider sx={{ borderColor: COLORS.border, my: 2 }} />
+
+            <Typography sx={{ ...mutedStyle, mb: 2 }}>
+              Display this code at your gym so members can scan it and open
+              your gym's check-in page.
+            </Typography>
+
+            <Box
+              className="attendance-qr"
+              sx={{
+                flex: 1,
+                minHeight: 235,
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                backgroundColor: COLORS.background,
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: 2,
+                p: 2,
+                mb: 2,
               }}
             >
-              <QRCodeSVG
-                value={checkInUrl}
-                size={184}
-                level="M"
-                includeMargin
+              {gymLoading ? (
+                <CircularProgress sx={{ color: COLORS.light }} />
+              ) : checkInUrl ? (
+                <Box
+                  sx={{
+                    backgroundColor: '#FFFFFF',
+                    p: 1.5,
+                    borderRadius: 2,
+                    lineHeight: 0,
+                  }}
+                >
+                  <QRCodeSVG
+                    value={checkInUrl}
+                    size={180}
+                    level="M"
+                    includeMargin
+                  />
+                </Box>
+              ) : (
+                <Typography
+                  sx={{ color: qrError ? '#FFB4AB' : COLORS.muted }}
+                  variant="body2"
+                  textAlign="center"
+                >
+                  {qrError || 'Gym QR code is not available.'}
+                </Typography>
+              )}
+            </Box>
+
+            {qrError && !gymLoading && (
+              <Typography
+                variant="caption"
+                sx={{ color: '#FFB4AB', mb: 1.5 }}
+              >
+                {qrError}
+              </Typography>
+            )}
+
+            <Button
+              fullWidth
+              variant="contained"
+              startIcon={<PrintIcon />}
+              onClick={handlePrint}
+              disabled={!checkInUrl || gymLoading}
+              sx={{
+                py: 1.2,
+                backgroundColor: '#444040',
+                color: COLORS.white,
+                textTransform: 'none',
+                fontWeight: 650,
+                borderRadius: 2,
+                boxShadow: 'none',
+                '&:hover': {
+                  backgroundColor: '#575151',
+                  boxShadow: 'none',
+                },
+              }}
+            >
+              Print QR Code
+            </Button>
+          </Paper>
+        </Grid>
+
+        {/* Chart */}
+        <Grid item xs={12} md={7}>
+          <Paper elevation={3} sx={cardStyle}>
+            <Typography variant="h6" sx={headingStyle}>
+              Check-in Time Distribution
+            </Typography>
+
+            <Typography sx={{ ...mutedStyle, mt: 0.5, mb: 1 }}>
+              See when members checked in on {formatAttendanceDate(date)}.
+            </Typography>
+
+            {loading ? (
+              <Box
+                sx={{
+                  height: 300,
+                  display: 'grid',
+                  placeItems: 'center',
+                }}
+              >
+                <CircularProgress sx={{ color: COLORS.light }} />
+              </Box>
+            ) : !chartHasData ? (
+              <Box
+                sx={{
+                  height: 300,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                  gap: 1.5,
+                }}
+              >
+                <EventAvailableIcon
+                  sx={{ fontSize: 42, color: COLORS.muted }}
+                />
+
+                <Typography sx={{ color: COLORS.light, fontWeight: 600 }}>
+                  No check-in times available
+                </Typography>
+
+                <Typography sx={mutedStyle}>
+                  The chart will show time distribution when records with
+                  check-in times are available for this date.
+                </Typography>
+              </Box>
+            ) : (
+              <Box sx={{ width: '100%', height: 310, pt: 1 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={timeDistribution}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="46%"
+                      innerRadius={65}
+                      outerRadius={100}
+                      paddingAngle={3}
+                      stroke="none"
+                    >
+                      {timeDistribution.map((entry, index) => (
+                        <Cell
+                          key={entry.name}
+                          fill={COLORS.chart[index]}
+                        />
+                      ))}
+                    </Pie>
+
+                    <RechartsTooltip
+                      formatter={(value, name) => [
+                        `${value} check-in${value === 1 ? '' : 's'}`,
+                        name,
+                      ]}
+                      contentStyle={{
+                        backgroundColor: '#252525',
+                        border: `1px solid ${COLORS.border}`,
+                        borderRadius: 8,
+                        color: COLORS.white,
+                      }}
+                      itemStyle={{ color: COLORS.light }}
+                      labelStyle={{ color: COLORS.white }}
+                    />
+
+                    <Legend
+                      verticalAlign="bottom"
+                      iconType="circle"
+                      formatter={(value) => (
+                        <span
+                          style={{
+                            color: COLORS.light,
+                            fontSize: 12,
+                            paddingLeft: 3,
+                          }}
+                        >
+                          {value}
+                        </span>
+                      )}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </Box>
+            )}
+
+            <Divider sx={{ borderColor: COLORS.border, my: 1.5 }} />
+
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 2,
+                flexWrap: 'wrap',
+              }}
+            >
+              <Typography variant="caption" sx={{ color: COLORS.muted }}>
+                All times use Indian Standard Time (IST).
+              </Typography>
+
+              <Chip
+                size="small"
+                icon={<CheckCircleIcon />}
+                label="Live records"
+                sx={{
+                  color: COLORS.light,
+                  backgroundColor: 'rgba(255,255,255,0.06)',
+                  '& .MuiChip-icon': { color: COLORS.light },
+                  border: `1px solid ${COLORS.border}`,
+                }}
               />
-            </div>
-          ) : (
-            <div style={{ textAlign: 'center', padding: 24 }}>
-              <p style={styles.muted}>Loading gym QR code…</p>
-            </div>
-          )}
-        </div>
-      </section>
+            </Box>
+          </Paper>
+        </Grid>
+      </Grid>
 
-      {/* Attendance records */}
-      <section
-        className="attendance-card attendance-card--history"
-        style={styles.card}
-      >
-        <div
-          style={{
+      {/* Attendance history */}
+      <Paper elevation={3} sx={{ ...cardStyle, mb: 3 }}>
+        <Box
+          sx={{
             display: 'flex',
             justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            gap: 20,
-            flexWrap: 'wrap',
-            marginBottom: 24,
+            alignItems: { xs: 'flex-start', sm: 'center' },
+            flexDirection: { xs: 'column', sm: 'row' },
+            gap: 2,
+            mb: 3,
           }}
         >
-          <div>
-            <p style={styles.eyebrow}>Daily overview</p>
+          <Box>
+            <Typography variant="h6" sx={headingStyle}>
+              Attendance History
+            </Typography>
 
-            <h2
-              style={{
-                margin: 0,
-                fontSize: 22,
-                letterSpacing: '-0.035em',
-                color: COLORS.white,
-              }}
-            >
-              Attendance history
-            </h2>
+            <Typography sx={{ ...mutedStyle, mt: 0.5 }}>
+              Review member check-ins for a selected date.
+            </Typography>
+          </Box>
 
-            <p style={{ ...styles.muted, margin: '8px 0 0' }}>
-              Review member check-ins for a selected day.
-            </p>
-          </div>
+          <TextField
+            label="Filter by date"
+            type="date"
+            size="small"
+            value={date}
+            onChange={(event) => setDate(event.target.value)}
+            slotProps={{
+              inputLabel: { shrink: true },
+              htmlInput: { max: getIndiaDate() },
+            }}
+            sx={inputStyle}
+          />
+        </Box>
 
-          <div style={{ minWidth: 190 }}>
-            <label
-              htmlFor="attendance-date"
-              style={{
-                fontSize: 12,
-                fontWeight: 650,
-                color: COLORS.light,
-              }}
-            >
-              Filter by date
-            </label>
-
-            <input
-              id="attendance-date"
-              type="date"
-              value={date}
-              max={getIndiaDate()}
-              onChange={(event) => setDate(event.target.value)}
-              style={styles.input}
-            />
-          </div>
-        </div>
-
-        {/* Summary strip */}
-        <div
-          style={{
+        {/* Table summary */}
+        <Box
+          sx={{
+            p: 2,
+            mb: 2,
             display: 'flex',
-            flexWrap: 'wrap',
+            justifyContent: 'space-between',
             alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 12,
-            padding: '15px 16px',
-            marginBottom: 18,
-            background: COLORS.background,
+            gap: 2,
+            flexWrap: 'wrap',
+            backgroundColor: COLORS.background,
             border: `1px solid ${COLORS.border}`,
-            borderRadius: 11,
+            borderRadius: 2,
           }}
         >
-          <div>
-            <p
-              style={{
-                margin: '0 0 5px',
-                color: COLORS.muted,
-                fontSize: 11,
-                fontWeight: 650,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-              }}
-            >
-              Selected date
-            </p>
+          <Box>
+            <Typography variant="caption" sx={{ color: COLORS.muted }}>
+              SELECTED DATE
+            </Typography>
 
-            <strong style={{ fontSize: 14, color: COLORS.light }}>
+            <Typography
+              sx={{ color: COLORS.light, fontWeight: 650, mt: 0.3 }}
+            >
               {formatAttendanceDate(date)}
-            </strong>
-          </div>
+            </Typography>
+          </Box>
 
-          <div style={{ textAlign: 'right' }}>
-            <p
-              style={{
-                margin: '0 0 5px',
-                color: COLORS.muted,
-                fontSize: 11,
-                fontWeight: 650,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-              }}
-            >
-              Total check-ins
-            </p>
+          <Box sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
+            <Typography variant="caption" sx={{ color: COLORS.muted }}>
+              TOTAL CHECK-INS
+            </Typography>
 
-            <span
-              style={{
+            <Typography
+              sx={{
                 color: COLORS.white,
-                fontSize: 22,
                 fontWeight: 750,
-                fontVariantNumeric: 'tabular-nums',
+                fontSize: '1.5rem',
+                lineHeight: 1.4,
               }}
             >
-              {records.length}
-            </span>
-          </div>
-        </div>
+              {loading ? '—' : records.length}
+            </Typography>
+          </Box>
+        </Box>
 
         {loading ? (
-          <div
-            style={{
-              padding: '48px 16px',
-              textAlign: 'center',
-              border: `1px solid ${COLORS.border}`,
-              borderRadius: 11,
+          <Box
+            sx={{
+              minHeight: 200,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 2,
             }}
           >
-            <p style={{ color: COLORS.light, margin: 0 }}>
-              Loading attendance records…
-            </p>
-          </div>
+            <CircularProgress sx={{ color: COLORS.light }} />
+
+            <Typography sx={mutedStyle}>
+              Loading attendance records...
+            </Typography>
+          </Box>
         ) : records.length === 0 ? (
-          <div
-            style={{
-              padding: '48px 18px',
+          <Box
+            sx={{
+              py: 6,
+              px: 2,
               textAlign: 'center',
               border: `1px dashed ${COLORS.border}`,
-              borderRadius: 12,
-              background: COLORS.background,
+              borderRadius: 2,
+              backgroundColor: COLORS.background,
             }}
           >
-            <div
-              aria-hidden="true"
-              style={{
-                width: 48,
-                height: 48,
-                display: 'grid',
-                placeItems: 'center',
-                margin: '0 auto 16px',
-                borderRadius: 14,
-                background: COLORS.surface,
-                border: `1px solid ${COLORS.border}`,
-                color: COLORS.light,
-                fontSize: 24,
-              }}
-            >
-              ◷
-            </div>
+            <EventAvailableIcon
+              sx={{ fontSize: 42, color: COLORS.muted, mb: 1.5 }}
+            />
 
-            <h3
-              style={{
-                margin: '0 0 8px',
-                fontSize: 16,
-                color: COLORS.white,
-              }}
+            <Typography
+              sx={{ color: COLORS.white, fontWeight: 650, mb: 1 }}
             >
-              No check-ins yet
-            </h3>
+              No attendance records found
+            </Typography>
 
-            <p
-              style={{
-                ...styles.muted,
-                margin: 0,
-                fontSize: 13,
-              }}
-            >
-              No attendance records were found for {formatAttendanceDate(date)}.
-            </p>
-          </div>
+            <Typography sx={mutedStyle}>
+              There are no check-ins recorded for {formatAttendanceDate(date)}.
+              Try selecting another date.
+            </Typography>
+          </Box>
         ) : (
-          <div
-            style={{
+          <Box
+            sx={{
+              width: '100%',
               overflowX: 'auto',
               border: `1px solid ${COLORS.border}`,
-              borderRadius: 12,
+              borderRadius: 2,
             }}
           >
-            <table
-              style={{
+            <Box
+              component="table"
+              sx={{
                 width: '100%',
-                minWidth: 650,
+                minWidth: 720,
                 borderCollapse: 'collapse',
-                fontSize: 13,
-                background: COLORS.surface,
+                backgroundColor: COLORS.card,
+                '& th': {
+                  textAlign: 'left',
+                  px: 2,
+                  py: 1.8,
+                  backgroundColor: COLORS.background,
+                  color: COLORS.muted,
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  whiteSpace: 'nowrap',
+                  borderBottom: `1px solid ${COLORS.border}`,
+                },
+                '& td': {
+                  px: 2,
+                  py: 1.8,
+                  color: COLORS.light,
+                  fontSize: '0.85rem',
+                  borderBottom: `1px solid ${COLORS.border}`,
+                },
+                '& tbody tr:last-child td': {
+                  borderBottom: 'none',
+                },
+                '& tbody tr:hover': {
+                  backgroundColor: 'rgba(255,255,255,0.035)',
+                },
               }}
             >
               <thead>
-                <tr style={{ background: COLORS.background, color: COLORS.muted }}>
-                  {[
-                    'Roll number',
-                    'Member',
-                    'Attendance date',
-                    'Check-in time (IST)',
-                    'Status',
-                  ].map((heading) => (
-                    <th
-                      key={heading}
-                      style={{
-                        ...styles.tableCell,
-                        paddingTop: 14,
-                        paddingBottom: 14,
-                        fontSize: 11,
-                        fontWeight: 700,
-                        letterSpacing: '0.045em',
-                        textTransform: 'uppercase',
-                      }}
-                    >
-                      {heading}
-                    </th>
-                  ))}
+                <tr>
+                  <th>Roll Number</th>
+                  <th>Member</th>
+                  <th>Attendance Date</th>
+                  <th>Check-in Time (IST)</th>
+                  <th>Status</th>
                 </tr>
               </thead>
 
               <tbody>
                 {records.map((record) => (
-                  <tr className="attendance-row" key={record._id}>
-                    <td
-                      style={{
-                        ...styles.tableCell,
-                        color: COLORS.light,
-                        fontVariantNumeric: 'tabular-nums',
-                      }}
-                    >
-                      {record.rollNumber || '—'}
+                  <tr key={record._id}>
+                    <td>
+                      <Typography
+                        component="span"
+                        sx={{
+                          fontSize: '0.85rem',
+                          fontWeight: 650,
+                          color: COLORS.light,
+                        }}
+                      >
+                        {record.rollNumber || '—'}
+                      </Typography>
                     </td>
 
-                    <td style={styles.tableCell}>
-                      <span
-                        style={{
-                          display: 'block',
-                          color: COLORS.white,
+                    <td>
+                      <Typography
+                        sx={{
+                          fontSize: '0.85rem',
                           fontWeight: 650,
+                          color: COLORS.white,
                         }}
                       >
                         {record.memberName || 'Unknown member'}
-                      </span>
+                      </Typography>
 
                       {record.phone && (
-                        <span
-                          style={{
-                            display: 'block',
+                        <Typography
+                          sx={{
+                            mt: 0.4,
+                            fontSize: '0.75rem',
                             color: COLORS.muted,
-                            marginTop: 5,
-                            fontSize: 12,
                           }}
                         >
                           {record.phone}
-                        </span>
+                        </Typography>
                       )}
                     </td>
 
-                    <td
-                      style={{
-                        ...styles.tableCell,
-                        color: COLORS.light,
-                      }}
-                    >
-                      {formatAttendanceDate(record.attendanceDate)}
-                    </td>
+                    <td>{formatAttendanceDate(record.attendanceDate)}</td>
 
-                    <td
-                      style={{
-                        ...styles.tableCell,
-                        color: COLORS.light,
-                        fontVariantNumeric: 'tabular-nums',
-                      }}
-                    >
-                      {formatCheckInTime(record.checkInAt)}
-                    </td>
+                    <td>{formatCheckInTime(record.checkInAt)}</td>
 
-                    <td style={styles.tableCell}>
-                      <span
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 7,
-                          padding: '6px 10px',
-                          borderRadius: 20,
-                          background: COLORS.success,
-                          color: COLORS.successText,
-                          fontSize: 11,
-                          fontWeight: 700,
+                    <td>
+                      <Chip
+                        size="small"
+                        icon={<CheckCircleIcon />}
+                        label="Present"
+                        sx={{
+                          fontSize: '0.72rem',
+                          fontWeight: 650,
+                          backgroundColor: COLORS.greenSoft,
+                          color: '#A5D6A7',
+                          '& .MuiChip-icon': {
+                            color: COLORS.green,
+                            fontSize: 16,
+                          },
                         }}
-                      >
-                        <span
-                          style={{
-                            width: 6,
-                            height: 6,
-                            borderRadius: '50%',
-                            background: COLORS.successText,
-                          }}
-                        />
-                        Present
-                      </span>
+                      />
                     </td>
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </div>
+            </Box>
+          </Box>
         )}
 
-        <p
-          style={{
-            color: COLORS.muted,
-            fontSize: 11,
-            margin: '16px 0 0',
-            lineHeight: 1.6,
-          }}
+        <Typography
+          variant="caption"
+          sx={{ display: 'block', mt: 2, color: COLORS.muted }}
         >
-          All check-in times are displayed in Indian Standard Time (IST).
-        </p>
-      </section>
+          Check-in times are displayed in Indian Standard Time (IST).
+        </Typography>
+      </Paper>
 
-      <footer
-        style={{
-          marginTop: 22,
+      {/* Minimal page footer */}
+      <Box
+        sx={{
           display: 'flex',
           justifyContent: 'space-between',
+          alignItems: 'center',
           flexWrap: 'wrap',
-          gap: 10,
-          color: COLORS.muted,
-          fontSize: 11,
+          gap: 1,
+          pt: 1,
+          pb: 2,
         }}
       >
-        <span>GFT · Gym Fee Tracker</span>
-        <span>Built for your daily gym operations</span>
-      </footer>
+        <Typography variant="caption" sx={{ color: COLORS.muted }}>
+          GFT · Gym Fee Tracker
+        </Typography>
 
+        <Typography variant="caption" sx={{ color: COLORS.muted }}>
+          Your gym, better organized.
+        </Typography>
+      </Box>
+
+      {/* Print only the QR code */}
       <style>{`
-        /* Page entrance */
-        .attendance-page {
-          animation: gftFadeIn 450ms ease-out both;
-        }
-
-        .attendance-header {
-          animation: gftSlideUp 450ms ease-out 60ms both;
-        }
-
-        /* Subtle card entrance */
-        .attendance-card--qr {
-          animation: gftSlideUp 500ms ease-out 120ms both;
-        }
-
-        .attendance-card--history {
-          animation: gftSlideUp 500ms ease-out 190ms both;
-        }
-
-        /* Button hover and press feedback */
-        .attendance-button {
-          transition:
-            transform 180ms ease,
-            box-shadow 180ms ease,
-            opacity 160ms ease;
-        }
-
-        .attendance-button:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
-        }
-
-        .attendance-button:active:not(:disabled) {
-          transform: translateY(0) scale(0.98);
-        }
-
-        .attendance-button:focus-visible {
-          outline: 2px solid #E5E5E7;
-          outline-offset: 3px;
-        }
-
-        /* Attendance row hover */
-        .attendance-row {
-          transition: background-color 180ms ease;
-        }
-
-        .attendance-row:hover {
-          background-color: rgba(255, 255, 255, 0.045);
-        }
-
-        /* Refresh loading indicator */
-        .attendance-spin {
-          display: inline-block;
-          animation: gftSpin 1s linear infinite;
-        }
-
-        @keyframes gftFadeIn {
-          from {
-            opacity: 0;
-          }
-
-          to {
-            opacity: 1;
-          }
-        }
-
-        @keyframes gftSlideUp {
-          from {
-            opacity: 0;
-            transform: translateY(12px);
-          }
-
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes gftSpin {
-          to {
-            transform: rotate(360deg);
-          }
-        }
-
-        /* Print only the QR code */
         @media print {
           body {
             background: #ffffff !important;
           }
 
           body * {
-            visibility: hidden;
+            visibility: hidden !important;
           }
 
           .attendance-qr,
           .attendance-qr * {
-            visibility: visible;
+            visibility: visible !important;
           }
 
           .attendance-qr {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
+            position: absolute !important;
+            left: 50% !important;
+            top: 20px !important;
+            transform: translateX(-50%) !important;
+            border: none !important;
+            background: #ffffff !important;
           }
-        }
 
-        /* Mobile QR code sizing */
-        @media (max-width: 600px) {
           .attendance-qr svg {
-            max-width: 100%;
-            height: auto;
+            width: 250px !important;
+            height: 250px !important;
+          }
+
+          .attendance-print-card {
+            border: none !important;
+            box-shadow: none !important;
           }
         }
 
-        /* Accessibility: reduce motion when requested */
         @media (prefers-reduced-motion: reduce) {
-          .attendance-page,
-          .attendance-header,
-          .attendance-card--qr,
-          .attendance-card--history,
-          .attendance-spin {
+          .attendance-page {
             animation: none !important;
-          }
-
-          .attendance-button,
-          .attendance-row {
-            transition: none !important;
-          }
-
-          .attendance-button:hover:not(:disabled),
-          .attendance-button:active:not(:disabled) {
-            transform: none;
           }
         }
       `}</style>
-    </main>
+    </Box>
   );
 }

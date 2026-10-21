@@ -145,22 +145,77 @@ const Navbar = () => {
         justifyContent="space-between"
         spacing={{ xs: 1, sm: 0 }}
       >
-        <Box onClick={handleLogoClick} sx={{ cursor: 'pointer' }}>
-          <img
-            src={Logo}
-            alt="logo"
-            style={{
-              width: '48px',
-              height: '48px',
-              transition: 'transform 0.3s ease-in-out',
-              filter: 'brightness(0.7)',
-              objectFit: 'cover',
-              borderRadius: '20%',
-            }}
-            onMouseOver={(e) => (e.currentTarget.style.transform = 'scale(1.1)')}
-            onMouseOut={(e) => (e.currentTarget.style.transform = 'scale(1)')}
-          />
-        </Box>
+       
+<Box
+  onClick={handleLogoClick}
+  sx={{
+    display: 'flex',
+    alignItems: 'center',
+    gap: 1.2,
+    cursor: 'pointer',
+    width: 'fit-content',
+  }}
+>
+  <img
+    src={Logo}
+    alt="GFT logo"
+    style={{
+      width: '48px',
+      height: '48px',
+      transition: 'transform 0.3s ease-in-out',
+      filter: 'brightness(0.7)',
+      objectFit: 'cover',
+      borderRadius: '20%',
+    }}
+    onMouseOver={(e) =>
+      (e.currentTarget.style.transform = 'scale(1.1)')
+    }
+    onMouseOut={(e) =>
+      (e.currentTarget.style.transform = 'scale(1)')
+    }
+  />
+
+  <Box
+    sx={{
+      display: 'flex',
+      flexDirection: 'column',
+      lineHeight: 1.1,
+    }}
+  >
+    <Box
+      component="span"
+      sx={{
+        fontSize: '24px',
+        fontWeight: 800,
+        letterSpacing: '-1px',
+        color: '#FFFFFF',
+      }}
+    >
+      GFT
+       <Box
+                          component="span"
+                          sx={{ color: '#727272', ml: 0.4 }}
+                        >
+                          .
+                        </Box>
+    </Box>
+    
+
+    <Box
+      component="span"
+      sx={{
+        fontSize: '10px',
+        fontWeight: 600,
+        letterSpacing: '1.5px',
+        color: '#A1A1AA',
+        mt: '4px',
+      }}
+    >
+      GYM FEE TRACKER
+    </Box>
+  </Box>
+</Box>
+
 
         <Stack
           direction={{ xs: 'column', sm: 'row' }}

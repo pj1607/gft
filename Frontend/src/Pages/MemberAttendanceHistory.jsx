@@ -3,18 +3,38 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import axios from 'axios';
 
+import {
+  Box,
+  Typography,
+  Grid,
+  Paper,
+  CircularProgress,
+  Button,
+  Chip,
+  Divider,
+} from '@mui/material';
+
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import PersonIcon from '@mui/icons-material/Person';
+import BadgeIcon from '@mui/icons-material/Badge';
+import PhoneIcon from '@mui/icons-material/Phone';
+import EventAvailableIcon from '@mui/icons-material/EventAvailable';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+
 const API_URL = import.meta.env.VITE_API_URL;
 const INDIA_TIMEZONE = 'Asia/Kolkata';
 
 const COLORS = {
-  background: '#1C1C1E',
+  background: '#121212',
   white: '#FFFFFF',
   light: '#E5E5E7',
-  red: '#B71C1C',
-  slate: '#37474F',
   muted: '#A1A1AA',
   border: '#353538',
-  surface: '#242426',
+  surface: '#1a1a1a',
+  accent: '#858080',
+  red: '#B71C1C',
   success: '#183324',
   successText: '#A5D6A7',
 };
@@ -36,6 +56,7 @@ function formatAttendanceDate(value) {
   if (!match) return value;
 
   const [, year, month, day] = match;
+
   const date = new Date(
     Date.UTC(Number(year), Number(month) - 1, Number(day), 12)
   );
@@ -56,6 +77,7 @@ function getAttendanceDay(value) {
   if (!match) return '—';
 
   const [, year, month, day] = match;
+
   const date = new Date(
     Date.UTC(Number(year), Number(month) - 1, Number(day), 12)
   );
@@ -82,57 +104,90 @@ function formatCheckInTime(value) {
   });
 }
 
-const styles = {
-  page: {
-    maxWidth: 1080,
-    margin: '0 auto',
-    padding: '32px 20px 48px',
-    minHeight: '100vh',
-    boxSizing: 'border-box',
-    color: COLORS.white,
-    fontFamily:
-      'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-  },
-
-  eyebrow: {
-    color: COLORS.muted,
-    fontSize: 11,
-    fontWeight: 700,
-    letterSpacing: '0.15em',
-    textTransform: 'uppercase',
-    margin: '0 0 10px',
-  },
-
-  title: {
-    color: COLORS.white,
-    fontSize: 'clamp(28px, 4vw, 36px)',
-    lineHeight: 1.15,
-    letterSpacing: '-0.045em',
-    margin: 0,
-    fontWeight: 750,
-  },
-
-  muted: {
-    color: COLORS.muted,
-    fontSize: 14,
-    lineHeight: 1.7,
-  },
-
-  card: {
-    background: COLORS.surface,
-    border: `1px solid ${COLORS.border}`,
-    borderRadius: 16,
-    padding: 'clamp(20px, 3vw, 27px)',
-  },
-
-  tableCell: {
-    textAlign: 'left',
-    padding: '16px 18px',
-    borderBottom: `1px solid ${COLORS.border}`,
-    whiteSpace: 'nowrap',
-    fontSize: 13,
-  },
+const cardStyle = {
+  p: { xs: 2.5, sm: 3 },
+  backgroundColor: COLORS.surface,
+  color: COLORS.white,
+  border: `1px solid ${COLORS.border}`,
+  borderRadius: 3,
+  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
 };
+
+const headingStyle = {
+  color: COLORS.white,
+  fontWeight: 700,
+  letterSpacing: '-0.3px',
+};
+
+const mutedStyle = {
+  color: COLORS.muted,
+  fontSize: '0.875rem',
+  lineHeight: 1.7,
+};
+
+function SummaryCard({ title, value, icon, accent = false }) {
+  return (
+    <Paper
+      elevation={3}
+      sx={{
+        ...cardStyle,
+        height: '100%',
+        borderTop: accent
+          ? `3px solid ${COLORS.accent}`
+          : `1px solid ${COLORS.border}`,
+      }}
+    >
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 2,
+        }}
+      >
+        <Box sx={{ minWidth: 0 }}>
+          <Typography
+            variant="body2"
+            sx={{
+              color: COLORS.muted,
+              fontWeight: 600,
+              mb: 1.5,
+            }}
+          >
+            {title}
+          </Typography>
+
+          <Typography
+            sx={{
+              color: COLORS.light,
+              fontWeight: 750,
+              fontSize: { xs: '1.5rem', sm: '1.75rem' },
+              overflowWrap: 'anywhere',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {value}
+          </Typography>
+        </Box>
+
+        <Box
+          sx={{
+            width: 42,
+            height: 42,
+            flexShrink: 0,
+            display: 'grid',
+            placeItems: 'center',
+            borderRadius: 2,
+            backgroundColor: 'rgba(255,255,255,0.055)',
+            color: COLORS.light,
+          }}
+        >
+          {icon}
+        </Box>
+      </Box>
+    </Paper>
+  );
+}
 
 export default function MemberAttendanceHistory() {
   const { memberId } = useParams();
@@ -160,8 +215,8 @@ export default function MemberAttendanceHistory() {
       } catch (err) {
         if (!cancelled) {
           setError(
-            err.response?.data?.message ??
-              'Could not load attendance history.'
+            err.response?.data?.message ||
+              'Could not load attendance history. Please try again.'
           );
         }
       } finally {
@@ -178,486 +233,467 @@ export default function MemberAttendanceHistory() {
     };
   }, [memberId]);
 
+  const member = data?.member;
+  const attendance = Array.isArray(data?.attendance)
+    ? data.attendance
+    : [];
+
+  const totalPresentDays = data?.totalPresentDays ?? attendance.length;
+
   return (
-    <main style={styles.page}>
-      {/* Back navigation */}
-      <Link
-        to="/dashboard"
-        style={{
-          display: 'inline-flex',
+    <Box
+      component="main"
+      className="member-attendance-page"
+      sx={{
+        p: { xs: 2, sm: 3, md: 4 },
+        maxWidth: 1440,
+        mx: 'auto',
+        minHeight: '100vh',
+        boxSizing: 'border-box',
+        color: COLORS.white,
+        animation: 'memberHistoryFadeIn 350ms ease-out',
+        '@keyframes memberHistoryFadeIn': {
+          from: { opacity: 0, transform: 'translateY(5px)' },
+          to: { opacity: 1, transform: 'translateY(0)' },
+        },
+      }}
+    >
+      {/* Navigation */}
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'center',
-          gap: 8,
-          color: COLORS.light,
-          textDecoration: 'none',
-          fontSize: 13,
-          fontWeight: 600,
-          marginBottom: 28,
+          gap: 2,
+          flexWrap: 'wrap',
+          mb: 3,
         }}
       >
-        <span style={{ color: '#ef9a9a', fontSize: 17 }}>←</span>
-        Back to members
-      </Link>
+        <Button
+          component={Link}
+          to="/dashboard"
+          startIcon={<ArrowBackIcon />}
+          sx={{
+            color: COLORS.light,
+            textTransform: 'none',
+            fontWeight: 600,
+            borderRadius: 2,
+            px: 1.5,
+            '&:hover': {
+              backgroundColor: 'rgba(255,255,255,0.055)',
+            },
+          }}
+        >
+          Back to members
+        </Button>
+
+        <Button
+          component={Link}
+          to="/dashboard"
+          startIcon={<DashboardIcon />}
+          sx={{
+            color: COLORS.muted,
+            textTransform: 'none',
+            fontWeight: 500,
+            '&:hover': {
+              color: COLORS.white,
+              backgroundColor: 'rgba(255,255,255,0.055)',
+            },
+          }}
+        >
+          Dashboard
+        </Button>
+      </Box>
 
       {/* Page heading */}
-      <header style={{ marginBottom: 28 }}>
-        <p style={styles.eyebrow}>Member overview</p>
+      <Box sx={{ mb: 3 }}>
+        <Typography
+          variant="h4"
+          sx={{
+            ...headingStyle,
+            fontSize: { xs: '1.8rem', sm: '2.125rem' },
+            mb: 1,
+          }}
+        >
+          Attendance History
+        </Typography>
 
-        <h1 style={styles.title}>Attendance history</h1>
-
-        <p style={{ ...styles.muted, margin: '10px 0 0' }}>
-          Track gym visits and review this member's attendance records.
-        </p>
-      </header>
+        <Typography sx={mutedStyle}>
+          Track gym visits and review an individual member's attendance.
+        </Typography>
+      </Box>
 
       {/* Loading state */}
       {loading && (
-        <section
-          style={{
-            ...styles.card,
-            padding: 40,
-            textAlign: 'center',
+        <Paper
+          elevation={3}
+          sx={{
+            ...cardStyle,
+            minHeight: 250,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 2,
           }}
         >
-          <p style={{ ...styles.muted, margin: 0 }}>
-            Loading attendance history…
-          </p>
-        </section>
+          <CircularProgress sx={{ color: COLORS.light }} />
+
+          <Typography sx={mutedStyle}>
+            Loading attendance history...
+          </Typography>
+        </Paper>
       )}
 
       {/* Error state */}
       {!loading && error && (
-        <div
+        <Paper
           role="alert"
-          style={{
-            padding: '16px 18px',
-            borderRadius: 12,
-            background: '#3B2022',
-            border: '1px solid #6b3030',
+          sx={{
+            p: 3,
             color: '#FFB4AB',
-            fontSize: 13,
-            lineHeight: 1.6,
+            backgroundColor: '#351F20',
+            border: '1px solid #693737',
+            borderRadius: 3,
           }}
         >
-          {error}
-        </div>
+          <Typography fontWeight={650} sx={{ mb: 1 }}>
+            Unable to load attendance history
+          </Typography>
+
+          <Typography variant="body2">{error}</Typography>
+
+          <Button
+            onClick={() => {
+              setData(null);
+              setLoading(true);
+              setError('');
+
+              axios
+                .get(
+                  `${API_URL}/attendance/member/${memberId}/history`,
+                  getAuthConfig()
+                )
+                .then((response) => setData(response.data))
+                .catch((err) =>
+                  setError(
+                    err.response?.data?.message ||
+                      'Could not load attendance history.'
+                  )
+                )
+                .finally(() => setLoading(false));
+            }}
+            sx={{
+              mt: 2,
+              color: '#FFB4AB',
+              textTransform: 'none',
+            }}
+          >
+            Try again
+          </Button>
+        </Paper>
       )}
 
       {/* Member details and attendance */}
-      {!loading && !error && data && (
+      {!loading && !error && data && member && (
         <>
-          <section
-            style={{
-              ...styles.card,
-              marginBottom: 28,
-            }}
-          >
-            <div
-              style={{
+          {/* Member profile */}
+          <Paper elevation={3} sx={{ ...cardStyle, mb: 3 }}>
+            <Box
+              sx={{
                 display: 'flex',
-                alignItems: 'flex-start',
-                gap: 16,
-                marginBottom: 25,
+                alignItems: 'center',
+                gap: 2,
+                mb: 3,
               }}
             >
-              <div
-                aria-hidden="true"
-                style={{
+              <Box
+                sx={{
+                  width: 56,
+                  height: 56,
                   flexShrink: 0,
-                  width: 54,
-                  height: 54,
                   display: 'grid',
                   placeItems: 'center',
-                  borderRadius: 15,
-                  background: 'rgba(183,28,28,0.15)',
-                  border: '1px solid rgba(183,28,28,0.45)',
+                  borderRadius: 2.5,
+                  backgroundColor: 'rgba(255,255,255,0.07)',
+                  border: `1px solid ${COLORS.border}`,
                   color: COLORS.white,
-                  fontSize: 23,
+                  fontSize: 25,
                   fontWeight: 750,
                 }}
               >
-                {(data.member.name || 'M').trim().charAt(0).toUpperCase()}
-              </div>
+                {(member.name || 'M').trim().charAt(0).toUpperCase()}
+              </Box>
 
-              <div style={{ minWidth: 0 }}>
-                <p style={styles.eyebrow}>Member details</p>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: COLORS.muted,
+                    fontWeight: 700,
+                    letterSpacing: '0.1em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Member overview
+                </Typography>
 
-                <h2
-                  style={{
-                    color: COLORS.white,
-                    fontSize: 23,
-                    letterSpacing: '-0.035em',
-                    margin: 0,
+                <Typography
+                  variant="h5"
+                  sx={{
+                    ...headingStyle,
+                    fontSize: { xs: '1.25rem', sm: '1.5rem' },
+                    mt: 0.5,
                     overflowWrap: 'anywhere',
                   }}
                 >
-                  {data.member.name}
-                </h2>
+                  {member.name || 'Unnamed member'}
+                </Typography>
 
-                <p
-                  style={{
-                    color: COLORS.muted,
-                    fontSize: 13,
-                    margin: '7px 0 0',
-                  }}
+                <Typography
+                  variant="body2"
+                  sx={{ color: COLORS.muted, mt: 0.5 }}
                 >
-                  Your member attendance summary
-                </p>
-              </div>
-            </div>
+                  Member attendance summary
+                </Typography>
+              </Box>
+            </Box>
 
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns:
-                  'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
-                gap: 12,
-              }}
-            >
-              <div
-                style={{
-                  padding: 16,
-                  border: `1px solid ${COLORS.border}`,
-                  borderRadius: 12,
-                  background: COLORS.background,
-                  minWidth: 0,
-                }}
-              >
-                <p
-                  style={{
-                    color: COLORS.muted,
-                    fontSize: 11,
-                    fontWeight: 650,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                    margin: '0 0 10px',
-                  }}
-                >
-                  Roll number
-                </p>
+            <Divider sx={{ borderColor: COLORS.border, mb: 3 }} />
 
-                <strong
-                  style={{
-                    color: COLORS.light,
-                    fontSize: 16,
-                    overflowWrap: 'anywhere',
-                  }}
-                >
-                  {data.member.rollNumber || '—'}
-                </strong>
-              </div>
+            <Grid container spacing={2.5}>
+              <Grid item xs={12} sm={6} md={4}>
+                <SummaryCard
+                  title="Roll Number"
+                  value={member.rollNumber || '—'}
+                  icon={<BadgeIcon />}
+                />
+              </Grid>
 
-              <div
-                style={{
-                  padding: 16,
-                  border: `1px solid ${COLORS.border}`,
-                  borderRadius: 12,
-                  background: COLORS.background,
-                  minWidth: 0,
-                }}
-              >
-                <p
-                  style={{
-                    color: COLORS.muted,
-                    fontSize: 11,
-                    fontWeight: 650,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                    margin: '0 0 10px',
-                  }}
-                >
-                  Phone number
-                </p>
+              <Grid item xs={12} sm={6} md={4}>
+                <SummaryCard
+                  title="Phone Number"
+                  value={member.phone || '—'}
+                  icon={<PhoneIcon />}
+                />
+              </Grid>
 
-                <strong
-                  style={{
-                    color: COLORS.light,
-                    fontSize: 15,
-                    overflowWrap: 'anywhere',
-                  }}
-                >
-                  {data.member.phone || '—'}
-                </strong>
-              </div>
+              <Grid item xs={12} sm={6} md={4}>
+                <SummaryCard
+                  title="Total Present Days"
+                  value={totalPresentDays}
+                  icon={<EventAvailableIcon />}
+                  accent
+                />
+              </Grid>
+            </Grid>
+          </Paper>
 
-              <div
-                style={{
-                  padding: 16,
-                  border: '1px solid rgba(183,28,28,0.45)',
-                  borderRadius: 12,
-                  background: 'rgba(183,28,28,0.09)',
-                  minWidth: 0,
-                }}
-              >
-                <p
-                  style={{
-                    color: '#d9a0a0',
-                    fontSize: 11,
-                    fontWeight: 650,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                    margin: '0 0 7px',
-                  }}
-                >
-                  Total present days
-                </p>
-
-                <strong
-                  style={{
-                    color: COLORS.white,
-                    fontSize: 29,
-                    letterSpacing: '-0.04em',
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                >
-                  {data.totalPresentDays}
-                </strong>
-              </div>
-            </div>
-          </section>
-
-          {/* Attendance table */}
-          <section style={styles.card}>
-            <div
-              style={{
+          {/* Attendance history */}
+          <Paper elevation={3} sx={cardStyle}>
+            <Box
+              sx={{
                 display: 'flex',
-                alignItems: 'center',
                 justifyContent: 'space-between',
-                gap: 14,
-                flexWrap: 'wrap',
-                marginBottom: 22,
+                alignItems: { xs: 'flex-start', sm: 'center' },
+                flexDirection: { xs: 'column', sm: 'row' },
+                gap: 2,
+                mb: 3,
               }}
             >
-              <div>
-                <p style={styles.eyebrow}>Visit records</p>
+              <Box>
+                <Typography variant="h6" sx={headingStyle}>
+                  Attendance Records
+                </Typography>
 
-                <h2
-                  style={{
-                    fontSize: 21,
-                    letterSpacing: '-0.035em',
-                    color: COLORS.white,
-                    margin: 0,
-                  }}
-                >
-                  Present attendance
-                </h2>
+                <Typography sx={{ ...mutedStyle, mt: 0.5 }}>
+                  Recorded visits for this member.
+                </Typography>
+              </Box>
 
-                <p style={{ ...styles.muted, margin: '7px 0 0', fontSize: 13 }}>
-                  All check-in times are displayed in IST.
-                </p>
-              </div>
-
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 7,
-                  padding: '8px 12px',
-                  border: `1px solid ${COLORS.border}`,
-                  borderRadius: 20,
-                  background: COLORS.background,
+              <Chip
+                icon={<CheckCircleIcon />}
+                label={`${attendance.length} ${
+                  attendance.length === 1 ? 'record' : 'records'
+                }`}
+                sx={{
                   color: COLORS.light,
-                  fontSize: 12,
-                  fontWeight: 650,
-                  whiteSpace: 'nowrap',
+                  backgroundColor: 'rgba(255,255,255,0.055)',
+                  border: `1px solid ${COLORS.border}`,
+                  fontWeight: 600,
+                  '& .MuiChip-icon': {
+                    color: COLORS.light,
+                  },
+                }}
+              />
+            </Box>
+
+            {/* Empty state */}
+            {attendance.length === 0 ? (
+              <Box
+                sx={{
+                  py: 6,
+                  px: 2,
+                  textAlign: 'center',
+                  backgroundColor: COLORS.background,
+                  border: `1px dashed ${COLORS.border}`,
+                  borderRadius: 2,
                 }}
               >
-                <span
-                  style={{
-                    width: 7,
-                    height: 7,
-                    borderRadius: '50%',
-                    background: COLORS.red,
+                <CalendarMonthIcon
+                  sx={{
+                    color: COLORS.muted,
+                    fontSize: 44,
+                    mb: 1.5,
                   }}
                 />
-                {data.attendance.length}{' '}
-                {data.attendance.length === 1 ? 'record' : 'records'}
-              </span>
-            </div>
 
-            {data.attendance.length === 0 ? (
-              <div
-                style={{
-                  padding: '44px 18px',
-                  textAlign: 'center',
-                  background: COLORS.background,
-                  border: `1px dashed ${COLORS.border}`,
-                  borderRadius: 12,
-                }}
-              >
-                <div
-                  aria-hidden="true"
-                  style={{
-                    width: 48,
-                    height: 48,
-                    display: 'grid',
-                    placeItems: 'center',
-                    margin: '0 auto 15px',
-                    borderRadius: 14,
-                    border: `1px solid ${COLORS.border}`,
-                    background: COLORS.surface,
-                    color: COLORS.light,
-                    fontSize: 24,
-                  }}
-                >
-                  ◷
-                </div>
-
-                <h3
-                  style={{
+                <Typography
+                  sx={{
                     color: COLORS.white,
-                    fontSize: 16,
-                    margin: '0 0 8px',
+                    fontWeight: 650,
+                    mb: 1,
                   }}
                 >
                   No attendance records yet
-                </h3>
+                </Typography>
 
-                <p
-                  style={{
-                    ...styles.muted,
-                    margin: 0,
-                    fontSize: 13,
-                  }}
-                >
-                  This member has no recorded attendance to display.
-                </p>
-              </div>
+                <Typography sx={mutedStyle}>
+                  This member has no recorded visits to display.
+                </Typography>
+              </Box>
             ) : (
-              <div
-                style={{
+              <Box
+                sx={{
+                  width: '100%',
                   overflowX: 'auto',
                   border: `1px solid ${COLORS.border}`,
-                  borderRadius: 12,
+                  borderRadius: 2,
                 }}
               >
-                <table
-                  style={{
+                <Box
+                  component="table"
+                  sx={{
                     width: '100%',
                     minWidth: 570,
                     borderCollapse: 'collapse',
-                    background: COLORS.surface,
+                    backgroundColor: COLORS.surface,
+                    '& th': {
+                      textAlign: 'left',
+                      px: 2,
+                      py: 1.8,
+                      backgroundColor: COLORS.background,
+                      color: COLORS.muted,
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      letterSpacing: '0.05em',
+                      textTransform: 'uppercase',
+                      whiteSpace: 'nowrap',
+                      borderBottom: `1px solid ${COLORS.border}`,
+                    },
+                    '& td': {
+                      px: 2,
+                      py: 1.8,
+                      color: COLORS.light,
+                      fontSize: '0.85rem',
+                      borderBottom: `1px solid ${COLORS.border}`,
+                    },
+                    '& tbody tr:last-child td': {
+                      borderBottom: 'none',
+                    },
+                    '& tbody tr:hover': {
+                      backgroundColor: 'rgba(255,255,255,0.035)',
+                    },
                   }}
                 >
                   <thead>
-                    <tr
-                      style={{
-                        background: COLORS.background,
-                        color: COLORS.muted,
-                      }}
-                    >
-                      {['Date', 'Day', 'Check-in time (IST)', 'Status'].map(
-                        (heading) => (
-                          <th
-                            key={heading}
-                            style={{
-                              ...styles.tableCell,
-                              fontSize: 11,
-                              fontWeight: 700,
-                              letterSpacing: '0.04em',
-                              textTransform: 'uppercase',
-                            }}
-                          >
-                            {heading}
-                          </th>
-                        )
-                      )}
+                    <tr>
+                      <th>Date</th>
+                      <th>Day</th>
+                      <th>Check-in Time (IST)</th>
+                      <th>Status</th>
                     </tr>
                   </thead>
 
                   <tbody>
-                    {data.attendance.map((record) => (
+                    {attendance.map((record) => (
                       <tr key={record._id}>
-                        <td
-                          style={{
-                            ...styles.tableCell,
-                            color: COLORS.light,
-                            fontVariantNumeric: 'tabular-nums',
-                          }}
-                        >
-                          {formatAttendanceDate(record.attendanceDate)}
-                        </td>
+                        <td>{formatAttendanceDate(record.attendanceDate)}</td>
 
-                        <td
-                          style={{
-                            ...styles.tableCell,
-                            color: COLORS.muted,
-                          }}
-                        >
+                        <td style={{ color: COLORS.muted }}>
                           {getAttendanceDay(record.attendanceDate)}
                         </td>
 
-                        <td
-                          style={{
-                            ...styles.tableCell,
-                            color: COLORS.light,
-                            fontVariantNumeric: 'tabular-nums',
-                          }}
-                        >
-                          {formatCheckInTime(record.checkInAt)}
-                        </td>
+                        <td>{formatCheckInTime(record.checkInAt)}</td>
 
-                        <td style={styles.tableCell}>
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 7,
-                              padding: '6px 10px',
-                              borderRadius: 20,
-                              background: COLORS.success,
+                        <td>
+                          <Chip
+                            size="small"
+                            icon={<CheckCircleIcon />}
+                            label="Present"
+                            sx={{
+                              backgroundColor: COLORS.success,
                               color: COLORS.successText,
-                              fontSize: 11,
-                              fontWeight: 700,
+                              fontWeight: 650,
+                              fontSize: '0.72rem',
+                              '& .MuiChip-icon': {
+                                color: COLORS.successText,
+                                fontSize: 16,
+                              },
                             }}
-                          >
-                            <span
-                              style={{
-                                width: 6,
-                                height: 6,
-                                borderRadius: '50%',
-                                background: COLORS.successText,
-                              }}
-                            />
-                            Present
-                          </span>
+                          />
                         </td>
                       </tr>
                     ))}
                   </tbody>
-                </table>
-              </div>
+                </Box>
+              </Box>
             )}
 
-            <p
-              style={{
+            <Typography
+              variant="caption"
+              sx={{
+                display: 'block',
                 color: COLORS.muted,
-                fontSize: 11,
-                lineHeight: 1.6,
-                margin: '17px 0 0',
+                mt: 2,
+                lineHeight: 1.7,
               }}
             >
-              Attendance dates retain their recorded calendar day. Check-in
-              timestamps are formatted for Indian Standard Time (IST).
-            </p>
-          </section>
+              Attendance dates retain their stored calendar day. Check-in
+              timestamps are displayed in Indian Standard Time (IST).
+            </Typography>
+          </Paper>
         </>
       )}
 
-      <footer
-        style={{
-          marginTop: 24,
+      {/* Consistent page footer */}
+      <Box
+        sx={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: 10,
-          color: COLORS.muted,
-          fontSize: 11,
+          gap: 1,
+          mt: 3,
+          pb: 2,
         }}
       >
-        <span>GFT · Gym Fee Tracker</span>
-        <span>Member attendance</span>
-      </footer>
-    </main>
+        <Typography variant="caption" sx={{ color: COLORS.muted }}>
+          GFT · Gym Fee Tracker
+        </Typography>
+
+        <Typography variant="caption" sx={{ color: COLORS.muted }}>
+          Member attendance
+        </Typography>
+      </Box>
+
+      <style>{`
+        @media (prefers-reduced-motion: reduce) {
+          .member-attendance-page {
+            animation: none !important;
+          }
+        }
+      `}</style>
+    </Box>
   );
 }
