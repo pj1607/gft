@@ -17,6 +17,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import CloseIcon from '@mui/icons-material/Close';
 import Snackbar from '@mui/material/Snackbar';
 import MuiAlert from '@mui/material/Alert';
+import InstallAppButton from './InstallAppButton.jsx';
 
 const API = import.meta.env.VITE_API_URL;
 
@@ -272,6 +273,7 @@ const Navbar = () => {
           </Drawer>
 
           {!isMobile && renderNavButtons(false)}
+          <InstallAppButton />
         </Stack>
       </Stack>
 

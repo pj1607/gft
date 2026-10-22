@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#111111"/>
+  <rect x="54" y="54" width="404" height="404" rx="92" fill="#1b1b1b" stroke="#d32f2f" stroke-width="14"/>
+  <path d="M115 204h44v-31h-44c-30 0-48 18-48 49v69c0 31 18 49 48 49h44v-31h-44c-10 0-15-5-15-18v-69c0-13 5-18 15-18z" fill="#ffffff" opacity="0"/>
+  <text x="256" y="294" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="144" font-weight="800" letter-spacing="-8" fill="#ffffff">GFT</text>
+  <path d="M145 338h222" stroke="#d32f2f" stroke-width="18" stroke-linecap="round"/>
+</svg>
